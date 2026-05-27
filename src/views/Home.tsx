@@ -7,9 +7,10 @@ import { getTodayCreatedCount } from "../lib/db/flashcards"
 import { getTodaySessionCount, getRecentSessions } from "../lib/db/sessions"
 import { getTodayReviewCount } from "../lib/db/reviews"
 import { getTodayDistractionsCount } from "../lib/db/distractions"
+import { getSessionIdsWithNotes } from "../lib/db/notes"
 import { Input } from "../components/ui/Input"
 import { Button } from "../components/ui/Button"
-import { PomodoroSettings } from "../components/settings/PomodoroSettings"
+import { PomodoroSettingsPanel } from "../components/settings/PomodoroSettings"
 import { formatDuration, formatDate } from "../lib/utils/date"
 import type { Session } from "../types"
 
@@ -27,7 +28,7 @@ export default function Home() {
   const [dueCount, setDueCount] = useState(0)
   const [stats, setStats] = useState<DayStats | null>(null)
   const [recentSessions, setRecentSessions] = useState<Session[]>([])
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sessionIdsWithNotes, setSessionIdsWithNotes] = useState<Set<number>>(new Set())
   const navigate = useNavigate()
   const { start } = useTimerActions()
   const phase = useTimerStore((s) => s.phase)
@@ -49,7 +50,12 @@ export default function Home() {
       .catch(console.error)
 
     getRecentSessions(5)
-      .then(setRecentSessions)
+      .then((sessions) => {
+        setRecentSessions(sessions)
+        const ids = sessions.map((s) => s.id)
+        return getSessionIdsWithNotes(ids)
+      })
+      .then((ids) => setSessionIdsWithNotes(new Set(ids)))
       .catch(console.error)
   }, [])
 
@@ -86,31 +92,6 @@ export default function Home() {
     <div className="flex flex-col items-center px-6 py-8 h-full overflow-auto">
       <div className="w-full max-w-sm flex flex-col gap-6">
 
-        {/* Settings gear — top right */}
-        <div className="flex justify-end -mb-2">
-          <button
-            type="button"
-            aria-label="Ajustes"
-            onClick={() => setSettingsOpen(true)}
-            className="text-text-secondary hover:text-text-primary transition-colors duration-100 p-1 rounded"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-        </div>
-
         {/* Start form */}
         <div className="flex flex-col gap-4">
           <h1 className="text-text-primary text-xl font-semibold text-center">
@@ -126,13 +107,25 @@ export default function Home() {
             maxLength={120}
             autoFocus
           />
+
+          <PomodoroSettingsPanel />
+
           <Button
             variant="primary"
             size="lg"
             onClick={handleStart}
             disabled={starting}
-            className="w-full"
+            className="w-full flex items-center justify-center gap-2"
           >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
             {starting ? "Iniciando…" : "Iniciar pomodoro"}
           </Button>
 
@@ -221,19 +214,38 @@ export default function Home() {
                       </span>
                     )}
                   </div>
-                  <span className="text-text-secondary text-xs flex-shrink-0 ml-3">
-                    {session.duracion_minutos != null
-                      ? formatDuration(session.duracion_minutos)
-                      : "—"}
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                    {sessionIdsWithNotes.has(session.id) && (
+                      <button
+                        type="button"
+                        title="Ver notas Cornell"
+                        onClick={() =>
+                          navigate("/cornell", {
+                            state: {
+                              sessionId: session.id,
+                              timing: "after",
+                              breakMin: 0,
+                              sessionTema: session.tema ?? null,
+                            },
+                          })
+                        }
+                        className="text-text-secondary hover:text-accent transition-colors duration-100 text-sm"
+                      >
+                        📝
+                      </button>
+                    )}
+                    <span className="text-text-secondary text-xs">
+                      {session.duracion_minutos != null
+                        ? formatDuration(session.duracion_minutos)
+                        : "—"}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
-
-      <PomodoroSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
 }

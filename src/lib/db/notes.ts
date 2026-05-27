@@ -20,3 +20,14 @@ export async function getNoteBySessionId(session_id: number): Promise<CornellNot
   )
   return rows.length > 0 ? rows[0] : null
 }
+
+export async function getSessionIdsWithNotes(session_ids: number[]): Promise<number[]> {
+  if (session_ids.length === 0) return []
+  const db = await initDB()
+  const placeholders = session_ids.map(() => "?").join(", ")
+  const rows = await db.select<{ session_id: number }[]>(
+    `SELECT session_id FROM cornell_notes WHERE session_id IN (${placeholders})`,
+    session_ids,
+  )
+  return rows.map((r) => r.session_id)
+}
