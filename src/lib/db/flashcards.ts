@@ -1,4 +1,4 @@
-import { getDB } from "./index"
+import { initDB } from "./index"
 import { nextReviewDate } from "../sr/algorithm"
 import type { Flashcard } from "../../types"
 
@@ -7,7 +7,7 @@ export async function createFlashcard(data: {
   back: string
   tag: string
 }): Promise<number> {
-  const db = getDB()
+  const db = await initDB()
   const fecha_creacion = Math.floor(Date.now() / 1000)
   const proxima_revision = nextReviewDate(0)
 
@@ -26,7 +26,7 @@ export async function updateFlashcard(
   id: number,
   data: { front: string; back: string; tag: string },
 ): Promise<void> {
-  const db = getDB()
+  const db = await initDB()
   await db.execute("UPDATE flashcards SET front = ?, back = ?, tag = ? WHERE id = ?", [
     data.front,
     data.back,
@@ -36,12 +36,12 @@ export async function updateFlashcard(
 }
 
 export async function deleteFlashcard(id: number): Promise<void> {
-  const db = getDB()
+  const db = await initDB()
   await db.execute("DELETE FROM flashcards WHERE id = ?", [id])
 }
 
 export async function getCardById(id: number): Promise<Flashcard | null> {
-  const db = getDB()
+  const db = await initDB()
   const result = await db.select<Flashcard[]>(
     "SELECT * FROM flashcards WHERE id = ? LIMIT 1",
     [id],
@@ -50,12 +50,12 @@ export async function getCardById(id: number): Promise<Flashcard | null> {
 }
 
 export async function getAllCards(): Promise<Flashcard[]> {
-  const db = getDB()
+  const db = await initDB()
   return db.select<Flashcard[]>("SELECT * FROM flashcards ORDER BY fecha_creacion DESC")
 }
 
 export async function getDueCards(): Promise<Flashcard[]> {
-  const db = getDB()
+  const db = await initDB()
   const now = Math.floor(Date.now() / 1000)
   return db.select<Flashcard[]>(
     "SELECT * FROM flashcards WHERE intervalo_actual < 4 AND proxima_revision <= ? ORDER BY proxima_revision ASC",

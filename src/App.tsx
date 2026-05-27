@@ -30,7 +30,10 @@ export default function App() {
   useEffect(() => {
     initDB()
       .then(() => setReady(true))
-      .catch(console.error)
+      .catch((err) => {
+        console.error("DB init failed:", err)
+        setReady(true)
+      })
   }, [])
 
   if (!ready) {

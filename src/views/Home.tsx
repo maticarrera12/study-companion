@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button"
 export default function Home() {
   const [topic, setTopic] = useState("")
   const [starting, setStarting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { start } = useTimerActions()
   const phase = useTimerStore((s) => s.phase)
@@ -16,10 +17,12 @@ export default function Home() {
     if (starting) return
     setStarting(true)
     try {
+      setError(null)
       await start(topic.trim())
       navigate("/timer")
     } catch (err) {
       console.error("Failed to start session:", err)
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setStarting(false)
     }
@@ -64,6 +67,10 @@ export default function Home() {
         >
           {starting ? "Iniciando…" : "Iniciar pomodoro"}
         </Button>
+
+        {error && (
+          <p className="text-red-400 text-xs text-center break-all">{error}</p>
+        )}
 
         <div className="flex items-center justify-center gap-4 pt-2">
           <button
