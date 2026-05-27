@@ -12,6 +12,7 @@ interface CornellRouteState {
   timing: "before" | "during" | "after"
   breakMin: number
   sessionTema: string | null
+  viewMode?: boolean
 }
 
 export default function CornellNotes() {
@@ -25,6 +26,7 @@ export default function CornellNotes() {
   const [breakSecondsLeft, setBreakSecondsLeft] = useState<number | undefined>(undefined)
   const [flashcardsMessage, setFlashcardsMessage] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isBlurred, setIsBlurred] = useState(false)
 
   // Redirect if navigated directly without state
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function CornellNotes() {
           setNotas(note.notas_principales)
           setPreguntas(note.preguntas)
           setResumen(note.resumen)
+          if (state.viewMode) setIsBlurred(true)
         }
       })
       .catch(console.error)
@@ -70,7 +73,7 @@ export default function CornellNotes() {
     return null
   }
 
-  const { sessionId, timing, sessionTema } = state
+  const { sessionId, timing, sessionTema, viewMode } = state
 
   const navigateAfterAction = async () => {
     if (timing === "before") {
@@ -142,16 +145,29 @@ export default function CornellNotes() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-border">
+      <header className="flex items-center justify-between px-6 py-3">
         <div>
           <h1 className="text-text-primary font-semibold">Notas de sesión</h1>
           {sessionTema && (
             <p className="text-text-secondary text-sm">{sessionTema}</p>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={handleSkip}>
-          Omitir
-        </Button>
+        <div className="flex items-center gap-3">
+          {viewMode && (
+            <button
+              type="button"
+              onClick={() => setIsBlurred((b) => !b)}
+              className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors duration-100"
+            >
+              <span>{isBlurred ? "Revelar" : "Ocultar"}</span>
+            </button>
+          )}
+          {!viewMode && (
+            <Button variant="ghost" size="sm" onClick={handleSkip}>
+              Omitir
+            </Button>
+          )}
+        </div>
       </header>
 
       {/* Content */}
@@ -164,11 +180,12 @@ export default function CornellNotes() {
           onPreguntasChange={setPreguntas}
           onResumenChange={setResumen}
           breakSecondsLeft={timing === "during" ? breakSecondsLeft : undefined}
+          blurred={isBlurred}
         />
       </div>
 
       {/* Footer */}
-      <footer className="flex items-center justify-between px-6 py-4 border-t border-border">
+      <footer className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"

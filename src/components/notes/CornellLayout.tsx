@@ -8,6 +8,7 @@ interface CornellLayoutProps {
   onPreguntasChange: (v: string) => void
   onResumenChange: (v: string) => void
   breakSecondsLeft?: number
+  blurred?: boolean
 }
 
 function formatCountdown(seconds: number): string {
@@ -26,11 +27,12 @@ export function CornellLayout({
   onPreguntasChange,
   onResumenChange,
   breakSecondsLeft,
+  blurred = false,
 }: CornellLayoutProps) {
   return (
     <div className="relative grid grid-cols-[65fr_30fr] grid-rows-[1fr_auto] h-full">
       {/* Main zone — Notas y conceptos */}
-      <div className="col-span-1 row-span-1 p-2 flex flex-col">
+      <div className={`col-span-1 row-span-1 p-2 flex flex-col transition-all duration-200 ${blurred ? "blur-sm pointer-events-none select-none" : ""}`}>
         <NoteZone
           label="Notas y conceptos"
           placeholder="Escribí tus notas principales, conceptos clave, definiciones..."
@@ -41,7 +43,7 @@ export function CornellLayout({
       </div>
 
       {/* Cue zone — Preguntas */}
-      <div className="col-span-1 row-span-1 p-2 border-l border-border flex flex-col">
+      <div className="col-span-1 row-span-1 p-2 flex flex-col">
         <NoteZone
           label="Preguntas"
           placeholder="¿Qué preguntas surgen? Una por línea..."
@@ -52,7 +54,7 @@ export function CornellLayout({
       </div>
 
       {/* Summary zone — full width, limited height */}
-      <div className="col-span-2 p-2 border-t border-border h-28">
+      <div className={`col-span-2 p-2 h-28 transition-all duration-200 ${blurred ? "blur-sm pointer-events-none select-none" : ""}`}>
         <NoteZone
           label="Resumen en una frase"
           placeholder="¿Cuál es la idea central de esta sesión?"

@@ -226,6 +226,7 @@ export default function Home() {
                               timing: "after",
                               breakMin: 0,
                               sessionTema: session.tema ?? null,
+                              viewMode: true,
                             },
                           })
                         }
