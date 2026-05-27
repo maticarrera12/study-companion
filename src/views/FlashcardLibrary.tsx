@@ -64,7 +64,16 @@ export default function FlashcardLibrary() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <h1 className="text-text-primary font-semibold text-lg">Flashcards</h1>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="text-text-secondary hover:text-text-primary transition-colors duration-100 text-sm"
+          >
+            ← Volver
+          </button>
+          <h1 className="text-text-primary font-semibold text-lg">Flashcards</h1>
+        </div>
         <Button variant="primary" size="sm" onClick={() => navigate("/new-card")}>
           + Nueva
         </Button>

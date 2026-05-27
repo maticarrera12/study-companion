@@ -103,7 +103,7 @@ export default function FlashcardEdit() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col items-center">
         <div className="w-full max-w-lg flex flex-col gap-5">
           {/* Front */}
           <div className="flex flex-col gap-1">
@@ -117,7 +117,7 @@ export default function FlashcardEdit() {
               rows={3}
               className={[
                 "bg-surface border border-border rounded-lg px-3 py-2 min-h-[80px]",
-                "text-text-primary placeholder:text-text-secondary/60",
+                "text-text-primary placeholder:text-text-secondary/60 text-center",
                 "focus:outline-none focus:border-accent",
                 "transition-colors duration-100 resize-y",
               ].join(" ")}
@@ -134,7 +134,7 @@ export default function FlashcardEdit() {
               rows={4}
               className={[
                 "bg-surface border border-border rounded-lg px-3 py-2 min-h-[120px]",
-                "text-text-primary placeholder:text-text-secondary/60",
+                "text-text-primary placeholder:text-text-secondary/60 text-center",
                 "focus:outline-none focus:border-accent",
                 "transition-colors duration-100 resize-y",
               ].join(" ")}
