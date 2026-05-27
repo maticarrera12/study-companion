@@ -112,6 +112,7 @@ export function useTimer() {
             sessionId: s.sessionId,
             timing: settings.cornell_timing,
             breakMin: settings.break_duration_min,
+            sessionTema: s.topic || null,
           },
         })
       } else {
@@ -144,6 +145,7 @@ export function useTimer() {
           sessionId: s.sessionId,
           timing: "after",
           breakMin: settings.break_duration_min,
+          sessionTema: s.topic || null,
         },
       })
     } else {
