@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTimerStore } from "../stores/timerStore"
 import { useTimerActions } from "../contexts/TimerContext"
+import { getDueCards } from "../lib/db/flashcards"
 import { Input } from "../components/ui/Input"
 import { Button } from "../components/ui/Button"
 
@@ -9,9 +10,16 @@ export default function Home() {
   const [topic, setTopic] = useState("")
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dueCount, setDueCount] = useState(0)
   const navigate = useNavigate()
   const { start } = useTimerActions()
   const phase = useTimerStore((s) => s.phase)
+
+  useEffect(() => {
+    getDueCards()
+      .then((cards) => setDueCount(cards.length))
+      .catch(console.error)
+  }, [])
 
   async function handleStart() {
     if (starting) return
@@ -70,6 +78,16 @@ export default function Home() {
 
         {error && (
           <p className="text-red-400 text-xs text-center break-all">{error}</p>
+        )}
+
+        {dueCount > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate("/review")}
+            className="w-full text-center py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent text-sm hover:bg-accent/20 transition-colors duration-100"
+          >
+            {dueCount} card{dueCount !== 1 ? "s" : ""} para revisar hoy →
+          </button>
         )}
 
         <div className="flex items-center justify-center gap-4 pt-2">

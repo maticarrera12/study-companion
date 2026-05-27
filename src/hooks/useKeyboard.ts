@@ -2,6 +2,9 @@ import { useEffect } from "react"
 
 interface KeyboardActions {
   pauseResume: () => void
+  revealCard?: () => void
+  sabido?: () => void
+  fallado?: () => void
 }
 
 export function useKeyboard(actions: KeyboardActions): void {
@@ -12,11 +15,26 @@ export function useKeyboard(actions: KeyboardActions): void {
 
       if (e.code === "Space") {
         e.preventDefault()
-        actions.pauseResume()
+        if (actions.revealCard) {
+          actions.revealCard()
+        } else {
+          actions.pauseResume()
+        }
+        return
+      }
+
+      if (e.key === "1" && actions.sabido) {
+        actions.sabido()
+        return
+      }
+
+      if (e.key === "2" && actions.fallado) {
+        actions.fallado()
+        return
       }
     }
 
     document.addEventListener("keydown", handler)
     return () => document.removeEventListener("keydown", handler)
-  }, [actions.pauseResume])
+  }, [actions.pauseResume, actions.revealCard, actions.sabido, actions.fallado])
 }

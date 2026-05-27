@@ -54,6 +54,21 @@ export async function getAllCards(): Promise<Flashcard[]> {
   return db.select<Flashcard[]>("SELECT * FROM flashcards ORDER BY fecha_creacion DESC")
 }
 
+export async function updateFlashcardProgress(
+  id: number,
+  data: {
+    intervalo_actual: number
+    proxima_revision: number | null
+    veces_revisada: number
+  },
+): Promise<void> {
+  const db = await initDB()
+  await db.execute(
+    "UPDATE flashcards SET intervalo_actual = ?, proxima_revision = ?, veces_revisada = ? WHERE id = ?",
+    [data.intervalo_actual, data.proxima_revision, data.veces_revisada, id],
+  )
+}
+
 export async function getDueCards(): Promise<Flashcard[]> {
   const db = await initDB()
   const now = Math.floor(Date.now() / 1000)

@@ -2,8 +2,12 @@ import { useEffect, useState } from "react"
 import { Outlet } from "react-router-dom"
 import { initDB } from "./lib/db"
 import { useTimerStore } from "./stores/timerStore"
+import { useReviewStore } from "./stores/reviewStore"
 import { useTimer } from "./hooks/useTimer"
 import { useKeyboard } from "./hooks/useKeyboard"
+import { updateFlashcardProgress } from "./lib/db/flashcards"
+import { recordReview } from "./lib/db/reviews"
+import { updateLevel, nextReviewDate } from "./lib/sr/algorithm"
 import { TimerBar } from "./components/timer/TimerBar"
 import { FloatingButton } from "./components/timer/FloatingButton"
 import { DistractionModal } from "./components/timer/DistractionModal"
@@ -11,11 +15,31 @@ import { ConfirmDialog } from "./components/ui/ConfirmDialog"
 import { RecoveryBanner } from "./components/ui/RecoveryBanner"
 import { TimerContext } from "./contexts/TimerContext"
 
+async function handleReviewResult(result: "sabido" | "fallado") {
+  const { cards, currentIndex, recordResult, advance } = useReviewStore.getState()
+  const card = cards[currentIndex]
+  if (!card) return
+  const newLevel = updateLevel(card.intervalo_actual, result)
+  await recordReview(card.id, result)
+  await updateFlashcardProgress(card.id, {
+    intervalo_actual: newLevel,
+    proxima_revision: nextReviewDate(newLevel),
+    veces_revisada: card.veces_revisada + 1,
+  })
+  recordResult(result)
+  advance()
+}
+
 export default function App() {
   const [ready, setReady] = useState(false)
   const phase = useTimerStore((s) => s.phase)
   const isPaused = useTimerStore((s) => s.isPaused)
   const setPaused = useTimerStore((s) => s.setPaused)
+  const isRevealed = useReviewStore((s) => s.isRevealed)
+  const reviewCards = useReviewStore((s) => s.cards)
+  const reveal = useReviewStore((s) => s.reveal)
+
+  const inReview = reviewCards.length > 0
 
   // useTimer manages the interval — called ONCE here, never in child components
   const timerActions = useTimer()
@@ -25,6 +49,9 @@ export default function App() {
       if (phase === "idle") return
       setPaused(!isPaused)
     },
+    revealCard: inReview && !isRevealed ? () => reveal() : undefined,
+    sabido: inReview && isRevealed ? () => handleReviewResult("sabido") : undefined,
+    fallado: inReview && isRevealed ? () => handleReviewResult("fallado") : undefined,
   })
 
   useEffect(() => {
