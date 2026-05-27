@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from "react"
+import { useState, useEffect, useRef, type ReactNode } from "react"
 import { getSettings, saveSettings } from "../../lib/store"
 import type { AppSettings } from "../../types"
 
@@ -75,6 +75,70 @@ function ListIcon() {
   )
 }
 
+interface NumericInputProps {
+  value: number
+  min: number
+  max: number
+  onChange: (value: number) => void
+  "aria-label": string
+  className?: string
+}
+
+function NumericInput({ value, min, max, onChange, "aria-label": ariaLabel, className }: NumericInputProps) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const draftRef = useRef<string | null>(null)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  const display = draft ?? String(value)
+
+  function commit(raw: string) {
+    setDraft(null)
+    draftRef.current = null
+    const next = raw === "" ? min : Number(raw)
+    if (!Number.isFinite(next)) return
+    onChangeRef.current(Math.min(max, Math.max(min, next)))
+  }
+
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
+
+  useEffect(() => {
+    return () => {
+      if (draftRef.current !== null) {
+        commit(draftRef.current)
+      }
+    }
+  }, [min, max])
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={display}
+      onFocus={(e) => {
+        setDraft(String(value))
+        e.currentTarget.select()
+      }}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/\D/g, "")
+        setDraft(raw)
+        draftRef.current = raw
+      }}
+      onBlur={(e) => commit(e.currentTarget.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          commit(e.currentTarget.value)
+          e.currentTarget.blur()
+        }
+      }}
+      aria-label={ariaLabel}
+      className={className}
+    />
+  )
+}
+
 interface DurationCardProps {
   icon: ReactNode
   label: string
@@ -85,23 +149,16 @@ interface DurationCardProps {
 }
 
 function DurationCard({ icon, label, value, min, max, onChange }: DurationCardProps) {
-  function handleChange(raw: string) {
-    const next = Number(raw)
-    if (!Number.isFinite(next)) return
-    onChange(Math.min(max, Math.max(min, next)))
-  }
-
   return (
     <div className="relative bg-surface border border-border rounded-lg px-4 py-3 flex items-center justify-center">
       <div className="absolute left-4 top-1/2 -translate-y-1/2">{icon}</div>
       <div className="flex flex-col items-center gap-1">
         <div className="flex items-baseline justify-center gap-0.5">
-          <input
-            type="number"
+          <NumericInput
+            value={value}
             min={min}
             max={max}
-            value={value}
-            onChange={(e) => handleChange(e.target.value)}
+            onChange={onChange}
             aria-label={`Duración de ${label.toLowerCase()} en minutos`}
             className={[
               "w-10 bg-transparent text-text-primary font-semibold text-lg text-center",
@@ -122,27 +179,47 @@ export function PomodoroSettingsPanel() {
   const [breakDuration, setBreakDuration] = useState(5)
   const [cornellEveryN, setCornellEveryN] = useState(1)
   const [cornellTiming, setCornellTiming] = useState<AppSettings["cornell_timing"]>("during")
-  const [loaded, setLoaded] = useState(false)
+  const loadedRef = useRef(false)
+
+  function persistSettings(partial: Partial<AppSettings>) {
+    if (!loadedRef.current) return
+    saveSettings(partial).catch(console.error)
+  }
+
+  function updatePomodoroDuration(value: number) {
+    setPomodoroDuration(value)
+    persistSettings({ pomodoro_duration_min: value })
+  }
+
+  function updateBreakDuration(value: number) {
+    setBreakDuration(value)
+    persistSettings({ break_duration_min: value })
+  }
+
+  function updateCornellEveryN(value: number) {
+    setCornellEveryN(value)
+    persistSettings({ cornell_every_n: value })
+  }
+
+  function updateCornellTiming(value: AppSettings["cornell_timing"]) {
+    setCornellTiming(value)
+    persistSettings({ cornell_timing: value })
+  }
 
   useEffect(() => {
+    let cancelled = false
     getSettings().then((s) => {
+      if (cancelled) return
       setPomodoroDuration(s.pomodoro_duration_min)
       setBreakDuration(s.break_duration_min)
       setCornellEveryN(s.cornell_every_n)
       setCornellTiming(s.cornell_timing)
-      setLoaded(true)
+      loadedRef.current = true
     })
+    return () => {
+      cancelled = true
+    }
   }, [])
-
-  useEffect(() => {
-    if (!loaded) return
-    saveSettings({
-      pomodoro_duration_min: pomodoroDuration,
-      break_duration_min: breakDuration,
-      cornell_every_n: cornellEveryN,
-      cornell_timing: cornellTiming,
-    }).catch(console.error)
-  }, [loaded, pomodoroDuration, breakDuration, cornellEveryN, cornellTiming])
 
   return (
     <div className="flex flex-col gap-4">
@@ -153,7 +230,7 @@ export function PomodoroSettingsPanel() {
           value={pomodoroDuration}
           min={1}
           max={120}
-          onChange={setPomodoroDuration}
+          onChange={updatePomodoroDuration}
         />
         <DurationCard
           icon={<CoffeeIcon />}
@@ -161,7 +238,7 @@ export function PomodoroSettingsPanel() {
           value={breakDuration}
           min={1}
           max={60}
-          onChange={setBreakDuration}
+          onChange={updateBreakDuration}
         />
       </div>
 
@@ -173,16 +250,11 @@ export function PomodoroSettingsPanel() {
           </div>
           <label className="flex items-center gap-1.5 text-xs text-text-secondary">
             Cada
-            <input
-              type="number"
+            <NumericInput
+              value={cornellEveryN}
               min={1}
               max={10}
-              value={cornellEveryN}
-              onChange={(e) => {
-                const next = Number(e.target.value)
-                if (!Number.isFinite(next)) return
-                setCornellEveryN(Math.min(10, Math.max(1, next)))
-              }}
+              onChange={updateCornellEveryN}
               aria-label="Mostrar Cornell cada N pomodoros"
               className={[
                 "w-8 bg-surface border border-border rounded px-1 py-0.5 text-text-primary text-center",
@@ -208,7 +280,7 @@ export function PomodoroSettingsPanel() {
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                onClick={() => setCornellTiming(opt.value)}
+                onClick={() => updateCornellTiming(opt.value)}
                 className={[
                   "py-2 text-sm font-medium transition-colors duration-100 cursor-pointer",
                   selected

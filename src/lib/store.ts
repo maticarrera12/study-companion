@@ -2,6 +2,7 @@ import { load, type Store } from "@tauri-apps/plugin-store"
 import type { AppSettings, PersistedTimerState } from "../types"
 
 let _store: Store | null = null
+let _settingsSaveQueue: Promise<void> = Promise.resolve()
 
 const DEFAULT_SETTINGS: AppSettings = {
   pomodoro_duration_min: 25,
@@ -27,9 +28,12 @@ export async function getSettings(): Promise<AppSettings> {
 }
 
 export async function saveSettings(partial: Partial<AppSettings>): Promise<void> {
-  const store = await getStore()
-  const current = await getSettings()
-  await store.set("app-settings", { ...current, ...partial })
+  _settingsSaveQueue = _settingsSaveQueue.then(async () => {
+    const store = await getStore()
+    const saved = await store.get<Partial<AppSettings>>("app-settings")
+    await store.set("app-settings", { ...DEFAULT_SETTINGS, ...(saved ?? {}), ...partial })
+  })
+  return _settingsSaveQueue
 }
 
 export async function getTimerState(): Promise<PersistedTimerState | null> {
