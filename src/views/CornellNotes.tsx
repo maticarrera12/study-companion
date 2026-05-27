@@ -70,7 +70,7 @@ export default function CornellNotes() {
     return null
   }
 
-  const { sessionId, timing, breakMin, sessionTema } = state
+  const { sessionId, timing, sessionTema } = state
 
   const navigateAfterAction = async () => {
     if (timing === "before") {

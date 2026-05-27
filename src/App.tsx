@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Outlet } from "react-router-dom"
 import { initDB } from "./lib/db"
 import { useTimerStore } from "./stores/timerStore"
@@ -12,6 +12,7 @@ import { RecoveryBanner } from "./components/ui/RecoveryBanner"
 import { TimerContext } from "./contexts/TimerContext"
 
 export default function App() {
+  const [ready, setReady] = useState(false)
   const phase = useTimerStore((s) => s.phase)
   const isPaused = useTimerStore((s) => s.isPaused)
   const setPaused = useTimerStore((s) => s.setPaused)
@@ -27,8 +28,18 @@ export default function App() {
   })
 
   useEffect(() => {
-    initDB().catch(console.error)
+    initDB()
+      .then(() => setReady(true))
+      .catch(console.error)
   }, [])
+
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-bg">
+        <span className="text-text-secondary text-sm">Cargando…</span>
+      </div>
+    )
+  }
 
   return (
     <TimerContext.Provider value={timerActions}>
