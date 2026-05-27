@@ -1,5 +1,6 @@
 import { initDB } from "./index"
 import type { Session } from "../../types"
+import { todayStartUnix } from "../utils/date"
 
 const now = () => Math.floor(Date.now() / 1000)
 
@@ -50,4 +51,13 @@ export async function getRecentSessions(limit: number): Promise<Session[]> {
     "SELECT * FROM sessions WHERE fecha_fin IS NOT NULL ORDER BY fecha_inicio DESC LIMIT ?",
     [limit],
   )
+}
+
+export async function getTodaySessionCount(): Promise<number> {
+  const db = await initDB()
+  const result = await db.select<[{ count: number }]>(
+    "SELECT COUNT(*) as count FROM sessions WHERE fecha_inicio >= ? AND fecha_fin IS NOT NULL",
+    [todayStartUnix()],
+  )
+  return result[0]?.count ?? 0
 }

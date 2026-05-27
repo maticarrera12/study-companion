@@ -1,6 +1,7 @@
 import { initDB } from "./index"
 import { nextReviewDate } from "../sr/algorithm"
 import type { Flashcard } from "../../types"
+import { todayStartUnix } from "../utils/date"
 
 export async function createFlashcard(data: {
   front: string
@@ -76,4 +77,13 @@ export async function getDueCards(): Promise<Flashcard[]> {
     "SELECT * FROM flashcards WHERE intervalo_actual < 4 AND proxima_revision <= ? ORDER BY proxima_revision ASC",
     [now],
   )
+}
+
+export async function getTodayCreatedCount(): Promise<number> {
+  const db = await initDB()
+  const result = await db.select<[{ count: number }]>(
+    "SELECT COUNT(*) as count FROM flashcards WHERE fecha_creacion >= ?",
+    [todayStartUnix()],
+  )
+  return result[0]?.count ?? 0
 }

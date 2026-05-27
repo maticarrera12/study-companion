@@ -1,15 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import { useTimerStore } from "../../stores/timerStore"
-
-function formatMMSS(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-}
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max) + "…" : text
-}
+import { formatMMSS, truncate } from "../../lib/utils/format"
 
 export function TimerBar() {
   const navigate = useNavigate()

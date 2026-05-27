@@ -5,11 +5,18 @@ interface KeyboardActions {
   revealCard?: () => void
   sabido?: () => void
   fallado?: () => void
+  closeModal?: () => void
 }
 
 export function useKeyboard(actions: KeyboardActions): void {
   useEffect(() => {
     function handler(e: KeyboardEvent) {
+      // Esc closes any active modal — fires regardless of focused element
+      if (e.key === "Escape") {
+        actions.closeModal?.()
+        return
+      }
+
       const tag = (e.target as HTMLElement).tagName
       if (["INPUT", "TEXTAREA", "SELECT"].includes(tag)) return
 
@@ -36,5 +43,11 @@ export function useKeyboard(actions: KeyboardActions): void {
 
     document.addEventListener("keydown", handler)
     return () => document.removeEventListener("keydown", handler)
-  }, [actions.pauseResume, actions.revealCard, actions.sabido, actions.fallado])
+  }, [
+    actions.pauseResume,
+    actions.revealCard,
+    actions.sabido,
+    actions.fallado,
+    actions.closeModal,
+  ])
 }

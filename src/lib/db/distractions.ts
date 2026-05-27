@@ -1,5 +1,6 @@
 import { initDB } from "./index"
 import type { Distraction } from "../../types"
+import { todayStartUnix } from "../utils/date"
 
 export async function addDistraction(session_id: number, texto: string): Promise<void> {
   const db = await initDB()
@@ -16,4 +17,15 @@ export async function getDistractionsForSession(session_id: number): Promise<Dis
     "SELECT * FROM distractions WHERE session_id = ? ORDER BY timestamp ASC",
     [session_id],
   )
+}
+
+export async function getTodayDistractionsCount(): Promise<number> {
+  const db = await initDB()
+  const result = await db.select<[{ count: number }]>(
+    `SELECT COUNT(*) as count FROM distractions
+     JOIN sessions ON distractions.session_id = sessions.id
+     WHERE distractions.timestamp >= ?`,
+    [todayStartUnix()],
+  )
+  return result[0]?.count ?? 0
 }

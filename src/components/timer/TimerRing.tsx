@@ -1,14 +1,9 @@
+import { formatMMSS } from "../../lib/utils/format"
+
 interface TimerRingProps {
   elapsed: number // seconds
   total: number // seconds
   size?: number // default 200
-}
-
-function formatMMSS(seconds: number): string {
-  const s = Math.max(0, seconds)
-  const m = Math.floor(s / 60)
-  const sec = s % 60
-  return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
 }
 
 export function TimerRing({ elapsed, total, size = 200 }: TimerRingProps) {

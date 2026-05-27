@@ -14,6 +14,7 @@ import { DistractionModal } from "./components/timer/DistractionModal"
 import { ConfirmDialog } from "./components/ui/ConfirmDialog"
 import { RecoveryBanner } from "./components/ui/RecoveryBanner"
 import { TimerContext } from "./contexts/TimerContext"
+import { useUIStore } from "./stores/uiStore"
 
 async function handleReviewResult(result: "sabido" | "fallado") {
   const { cards, currentIndex, recordResult, advance } = useReviewStore.getState()
@@ -52,6 +53,7 @@ export default function App() {
     revealCard: inReview && !isRevealed ? () => reveal() : undefined,
     sabido: inReview && isRevealed ? () => handleReviewResult("sabido") : undefined,
     fallado: inReview && isRevealed ? () => handleReviewResult("fallado") : undefined,
+    closeModal: () => useUIStore.getState().closeModal(),
   })
 
   useEffect(() => {

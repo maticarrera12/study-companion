@@ -1,4 +1,5 @@
 import { initDB } from "./index"
+import { todayStartUnix } from "../utils/date"
 
 export async function recordReview(
   flashcard_id: number,
@@ -14,10 +15,9 @@ export async function recordReview(
 
 export async function getTodayReviewCount(): Promise<number> {
   const db = await initDB()
-  const midnight = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
   const result = await db.select<[{ count: number }]>(
     "SELECT COUNT(DISTINCT flashcard_id) as count FROM reviews WHERE fecha >= ?",
-    [midnight],
+    [todayStartUnix()],
   )
   return result[0]?.count ?? 0
 }
