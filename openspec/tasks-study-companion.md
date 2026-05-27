@@ -29,46 +29,46 @@ Chain strategy: pending
 
 ## Phase 1: Project Scaffold + DB Init
 
-- [ ] TASK-001: Scaffold Tauri app — run `npm create tauri-app@latest study-companion -- --template react-ts`, then `npm run tauri add sql` and `npm run tauri add store`
-- [ ] TASK-002: Install front-end deps — `npm install zustand react-router-dom` and `npm install -D vitest @vitest/ui jsdom @testing-library/react @testing-library/user-event`
-- [ ] TASK-003: Configure `src-tauri/tauri.conf.json` — set identifier=`com.mcarrera.study-companion`, title, minWidth=800, minHeight=600, width=900, height=700
-- [ ] TASK-004: Write `src-tauri/capabilities/default.json` — include `sql:default`, `sql:allow-execute`, `sql:allow-select`, `sql:allow-load`, `store:default`, `store:allow-load`, `store:allow-set`, `store:allow-get`, `store:allow-delete`
-- [ ] TASK-005: Write `src-tauri/src/lib.rs` — register `tauri_plugin_sql` with migration vector pointing to `0001_initial.sql` via `include_str!`, register `tauri_plugin_store`
-- [ ] TASK-006: Write `src-tauri/migrations/0001_initial.sql` — all 5 tables with `ON DELETE CASCADE` on FK columns (distractions, cornell_notes, reviews), `UNIQUE` on `cornell_notes.session_id`, indexes on `flashcards(proxima_revision, intervalo_actual)`, `reviews(fecha)`, `distractions(session_id)`
-- [ ] TASK-007: Add Outfit WOFF2 font to `src/assets/fonts/` and configure `@font-face` in `src/index.css`
-- [ ] TASK-008: Configure Tailwind v4 in `src/index.css` — `@import "tailwindcss"`, `@theme` block with `--color-bg: #0a0e1a`, `--color-text-primary: #f0ece4`, `--color-text-secondary: #c9c3b8`, `--color-accent: #c97862`
-- [ ] TASK-009: Write `src/types/index.ts` — 7 interfaces: `Session`, `Distraction`, `CornellNote`, `Flashcard`, `Review`, `AppSettings`, `PersistedTimerState`
-- [ ] TASK-010: Write `src/lib/db/index.ts` — `initDB()` singleton using module-level `_db`, `getDB()` throws if called before init
-- [ ] TASK-011: Write `src/lib/store.ts` — `getStore()`, `getSettings()`, `saveSettings()`, `getTimerState()`, `saveTimerState()`, `clearTimerState()` with `DEFAULT_SETTINGS`
-- [ ] TASK-012: Write `src/router.tsx` — `createHashRouter` with 7 routes: `/`, `/review`, `/library`, `/library/:id`, `/new-card`, `/cornell`, `/timer`; all pointing to placeholder view components
-- [ ] TASK-013: Write placeholder view files — `src/views/Home.tsx`, `CornellNotes.tsx`, `FlashcardReview.tsx`, `FlashcardLibrary.tsx`, `FlashcardEdit.tsx`, `Timer.tsx` (each returns a `<div>` with view name)
-- [ ] TASK-014: Write `src/App.tsx` shell — `useEffect` calling `initDB()`, `useKeyboard()` stub, `TimerBar` placeholder, `<Outlet />`
-- [ ] TASK-015: Write `src/main.tsx` — wrap with `RouterProvider` using the exported `router`
+- [x] TASK-001: Scaffold Tauri app — run `npm create tauri-app@latest study-companion -- --template react-ts`, then `npm run tauri add sql` and `npm run tauri add store`
+- [x] TASK-002: Install front-end deps — `npm install zustand react-router-dom` and `npm install -D vitest @vitest/ui jsdom @testing-library/react @testing-library/user-event`
+- [x] TASK-003: Configure `src-tauri/tauri.conf.json` — set identifier=`com.mcarrera.study-companion`, title, minWidth=800, minHeight=600, width=900, height=700
+- [x] TASK-004: Write `src-tauri/capabilities/default.json` — include `sql:default`, `sql:allow-execute`, `sql:allow-select`, `sql:allow-load`, `store:default`, `store:allow-load`, `store:allow-set`, `store:allow-get`, `store:allow-delete`
+- [x] TASK-005: Write `src-tauri/src/lib.rs` — register `tauri_plugin_sql` with migration vector pointing to `0001_initial.sql` via `include_str!`, register `tauri_plugin_store`
+- [x] TASK-006: Write `src-tauri/migrations/0001_initial.sql` — all 5 tables with `ON DELETE CASCADE` on FK columns (distractions, cornell_notes, reviews), `UNIQUE` on `cornell_notes.session_id`, indexes on `flashcards(proxima_revision, intervalo_actual)`, `reviews(fecha)`, `distractions(session_id)`
+- [x] TASK-007: Add Outfit WOFF2 font — Google Fonts @import as dev fallback (TODO comment to self-host WOFF2)
+- [x] TASK-008: Configure Tailwind v4 in `src/index.css` — `@import "tailwindcss"`, `@theme` block with `--color-bg: #0a0e1a`, `--color-text-primary: #f0ece4`, `--color-text-secondary: #c9c3b8`, `--color-accent: #c97862`
+- [x] TASK-009: Write `src/types/index.ts` — 7 interfaces: `Session`, `Distraction`, `CornellNote`, `Flashcard`, `Review`, `AppSettings`, `PersistedTimerState`
+- [x] TASK-010: Write `src/lib/db/index.ts` — `initDB()` singleton using module-level `_db`, `getDB()` throws if called before init
+- [x] TASK-011: Write `src/lib/store.ts` — `getStore()`, `getSettings()`, `saveSettings()`, `getTimerState()`, `saveTimerState()`, `clearTimerState()` with `DEFAULT_SETTINGS`
+- [x] TASK-012: Write `src/router.tsx` — `createHashRouter` with 7 routes: `/`, `/review`, `/library`, `/library/:id`, `/new-card`, `/cornell`, `/timer`; all pointing to placeholder view components
+- [x] TASK-013: Write placeholder view files — `src/views/Home.tsx`, `CornellNotes.tsx`, `FlashcardReview.tsx`, `FlashcardLibrary.tsx`, `FlashcardEdit.tsx`, `Timer.tsx` (each returns a `<div>` with view name)
+- [x] TASK-014: Write `src/App.tsx` shell — `useEffect` calling `initDB()`, `<Outlet />`
+- [x] TASK-015: Write `src/main.tsx` — wrap with `RouterProvider` using the exported `router`
 - [ ] TASK-016: Smoke test Phase 1 — verify DB opens, all 5 tables exist, INSERT + SELECT on `sessions` returns correct row
 
 ---
 
 ## Phase 2: Pomodoro Timer
 
-- [ ] TASK-017: Write `src/stores/uiStore.ts` — `activeModal`, `confirmDialog`, `openModal()`, `closeModal()`, `showConfirm()` per design spec
-- [ ] TASK-018: Write `src/stores/timerStore.ts` — full shape: `sessionId`, `elapsed`, `duration`, `isPaused`, `topic`, `phase`, `pomodoroCountToday`, `distractionsThisSession` + all action stubs (`start`, `pause`, `resume`, `cancel`, `complete`, `tick`, `restore`, `incrementDistractions`)
-- [ ] TASK-019: Implement `timerStore.start()` — calls `createSession()`, sets `sessionId`, `duration`, `topic`, `phase: "focus"`; reads `durationMin` from caller (sourced from settings)
-- [ ] TASK-020: Implement `timerStore.tick()` — if paused or phase !== "focus" return early; if `elapsed + 1 >= duration` call `complete()`, else increment `elapsed`
-- [ ] TASK-021: Implement `timerStore.complete()` — calls `completeSession()`, increments `pomodoroCountToday`, sets `phase: "done"`, reads `cornell_every_n` + `cornell_timing` from settings and triggers navigation via passed `navigate` callback
-- [ ] TASK-022: Implement `timerStore.cancel()` — calls `uiStore.showConfirm`, on confirm clears timer state from store and calls `clearTimerState()`
-- [ ] TASK-023: Write `src/lib/db/sessions.ts` — `createSession()`, `completeSession()`, `getTodaySessions()`, `getRecentSessions(limit)` per design spec
-- [ ] TASK-024: Write `src/hooks/useTimer.ts` — crash recovery on mount (`getTimerState` → `store.restore`), `setInterval` tick loop, persist on every tick via `saveTimerState`, clear on idle/done phase
-- [ ] TASK-025: Write `src/components/ui/Button.tsx` — variant prop (`primary` | `ghost`), disabled state, className passthrough
-- [ ] TASK-026: Write `src/components/ui/Input.tsx` — label, value, onChange, maxLength, placeholder props; forwards ref
-- [ ] TASK-027: Write `src/components/ui/Modal.tsx` — backdrop blur, 100ms open/close animation (CSS only), Esc closes via `onClose` prop
-- [ ] TASK-028: Write `src/components/ui/EmptyState.tsx` — centered message + optional CTA Button per design spec
-- [ ] TASK-029: Write `src/components/ui/ConfirmDialog.tsx` — reads `uiStore.confirmDialog`, renders inside `Modal`, "Confirmar" / "Cancelar" buttons
-- [ ] TASK-030: Write `src/components/ui/RecoveryBanner.tsx` — reads `timerStore.topic`, shows "¿Continuás tu sesión de {topic}?" with Resume / Discard buttons; visible when `phase === "focus" && isPaused && sessionId != null` (restored state)
-- [ ] TASK-031: Write `src/components/timer/TimerRing.tsx` — SVG ring, `stroke-dashoffset` progress from `elapsed/total` props, no JS animation
-- [ ] TASK-032: Write `src/components/timer/TimerBar.tsx` — fixed top bar 48px, elapsed MM:SS, topic (truncated 20 chars), pause/resume icon button; renders null when `phase === "idle"`; click navigates to `/timer`
-- [ ] TASK-033: Write `src/hooks/useKeyboard.ts` — Space → start/pause timer (guarded by INPUT/TEXTAREA/SELECT check); Esc → close modal or navigate back; 1/2 keys stubbed (implemented in Phase 6)
-- [ ] TASK-034: Update `src/App.tsx` — register `useKeyboard()`, mount `TimerBar`, mount `ConfirmDialog`, mount `RecoveryBanner`
-- [ ] TASK-035: Update `src/views/Home.tsx` — timer widget: topic input + start button (idle state); reads `pomodoro_duration_min` from settings via `getSettings()`
+- [x] TASK-017: Write `src/stores/uiStore.ts` — `activeModal`, `confirmDialog`, `openModal()`, `closeModal()`, `showConfirm()` per design spec
+- [x] TASK-018: Write `src/stores/timerStore.ts` — full shape: `sessionId`, `elapsed`, `duration`, `isPaused`, `topic`, `phase`, `pomodoroCountToday`, `distractionsThisSession` + all action stubs (`start`, `pause`, `resume`, `cancel`, `complete`, `tick`, `restore`, `incrementDistractions`)
+- [x] TASK-019: Implement `timerStore.start()` — calls `createSession()`, sets `sessionId`, `duration`, `topic`, `phase: "focus"`; reads `durationMin` from caller (sourced from settings)
+- [x] TASK-020: Implement `timerStore.tick()` — if paused or phase !== "focus" return early; if `elapsed + 1 >= duration` call `complete()`, else increment `elapsed`
+- [x] TASK-021: Implement `timerStore.complete()` — calls `completeSession()`, increments `pomodoroCountToday`, sets `phase: "done"`, reads `cornell_every_n` + `cornell_timing` from settings and triggers navigation via passed `navigate` callback
+- [x] TASK-022: Implement `timerStore.cancel()` — calls `uiStore.showConfirm`, on confirm clears timer state from store and calls `clearTimerState()`
+- [x] TASK-023: Write `src/lib/db/sessions.ts` — `createSession()`, `completeSession()`, `getTodaySessions()`, `getRecentSessions(limit)` per design spec
+- [x] TASK-024: Write `src/hooks/useTimer.ts` — crash recovery on mount (`getTimerState` → `store.restore`), `setInterval` tick loop, persist on every tick via `saveTimerState`, clear on idle/done phase
+- [x] TASK-025: Write `src/components/ui/Button.tsx` — variant prop (`primary` | `ghost`), disabled state, className passthrough
+- [x] TASK-026: Write `src/components/ui/Input.tsx` — label, value, onChange, maxLength, placeholder props; forwards ref
+- [x] TASK-027: Write `src/components/ui/Modal.tsx` — backdrop blur, 100ms open/close animation (CSS only), Esc closes via `onClose` prop
+- [x] TASK-028: Write `src/components/ui/EmptyState.tsx` — centered message + optional CTA Button per design spec
+- [x] TASK-029: Write `src/components/ui/ConfirmDialog.tsx` — reads `uiStore.confirmDialog`, renders inside `Modal`, "Confirmar" / "Cancelar" buttons
+- [x] TASK-030: Write `src/components/ui/RecoveryBanner.tsx` — reads `timerStore.topic`, shows "¿Continuás tu sesión de {topic}?" with Resume / Discard buttons; visible when `phase === "focus" && isPaused && sessionId != null` (restored state)
+- [x] TASK-031: Write `src/components/timer/TimerRing.tsx` — SVG ring, `stroke-dashoffset` progress from `elapsed/total` props, no JS animation
+- [x] TASK-032: Write `src/components/timer/TimerBar.tsx` — fixed top bar 48px, elapsed MM:SS, topic (truncated 20 chars), pause/resume icon button; renders null when `phase === "idle"`; click navigates to `/timer`
+- [x] TASK-033: Write `src/hooks/useKeyboard.ts` — Space → start/pause timer (guarded by INPUT/TEXTAREA/SELECT check); Esc → close modal or navigate back; 1/2 keys stubbed (implemented in Phase 6)
+- [x] TASK-034: Update `src/App.tsx` — register `useKeyboard()`, mount `TimerBar`, mount `ConfirmDialog`, mount `RecoveryBanner`
+- [x] TASK-035: Update `src/views/Home.tsx` — timer widget: topic input + start button (idle state); reads `pomodoro_duration_min` from settings via `getSettings()`
 - [ ] TASK-036: Smoke test Phase 2 — full pomodoro cycle: start → tick to completion → verify `sessions` row has `fecha_fin` set and `duracion_minutos` correct
 
 ---
