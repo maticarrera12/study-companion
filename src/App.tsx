@@ -8,9 +8,9 @@ export default function App() {
   }, [])
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", backgroundColor: "#0a0e1a", color: "#f0ece4" }}>
+    <div className="flex flex-col h-screen bg-bg text-text-primary">
       {/* TimerBar will be mounted here in Phase 2 */}
-      <main style={{ flex: 1, overflow: "auto" }}>
+      <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
     </div>

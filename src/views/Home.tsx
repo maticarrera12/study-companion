@@ -1,7 +1,7 @@
 export default function Home() {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-      <span style={{ color: "#c9c3b8", fontSize: "18px" }}>Home</span>
+    <div className="flex items-center justify-center h-full">
+      <span className="text-text-secondary text-lg">Home</span>
     </div>
   )
 }
