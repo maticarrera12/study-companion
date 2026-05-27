@@ -64,6 +64,24 @@ export default function Home() {
         >
           {starting ? "Iniciando…" : "Iniciar pomodoro"}
         </Button>
+
+        <div className="flex items-center justify-center gap-4 pt-2">
+          <button
+            type="button"
+            onClick={() => navigate("/library")}
+            className="text-sm text-text-secondary hover:text-text-primary transition-colors duration-100"
+          >
+            Ver flashcards
+          </button>
+          <span className="text-border text-xs">·</span>
+          <button
+            type="button"
+            onClick={() => navigate("/new-card")}
+            className="text-sm text-text-secondary hover:text-text-primary transition-colors duration-100"
+          >
+            Nueva flashcard
+          </button>
+        </div>
       </div>
     </div>
   )
