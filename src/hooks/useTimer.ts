@@ -16,7 +16,7 @@ export function useTimer() {
 
   const persist = useCallback(() => {
     const s = useTimerStore.getState()
-    if (s.phase === "idle") return
+    if (s.phase !== "focus") return
     saveTimerState({
       sessionId: s.sessionId,
       startedAt: Math.floor(Date.now() / 1000) - s.elapsed,
@@ -133,6 +133,7 @@ export function useTimer() {
 
   const completeBreak = useCallback(async () => {
     stopInterval()
+    await clearTimerState()
     const s = useTimerStore.getState()
     const settings = await getSettings()
     const newCount = s.pomodoroCountToday
@@ -200,5 +201,10 @@ export function useTimer() {
     })
   }, [showConfirm, stopInterval, store, navigate])
 
-  return { start, pause, resume, cancel, complete, completeBreak }
+  const addBreakTime = useCallback((minutes: number) => {
+    const s = useTimerStore.getState()
+    s.setDuration(s.duration + minutes * 60)
+  }, [])
+
+  return { start, pause, resume, cancel, complete, completeBreak, addBreakTime }
 }

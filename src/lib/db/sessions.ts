@@ -53,6 +53,13 @@ export async function getRecentSessions(limit: number): Promise<Session[]> {
   )
 }
 
+export async function getAllSessions(): Promise<Session[]> {
+  const db = await initDB()
+  return db.select<Session[]>(
+    "SELECT * FROM sessions WHERE fecha_fin IS NOT NULL ORDER BY fecha_inicio DESC",
+  )
+}
+
 export async function updateSessionTema(id: number, tema: string): Promise<void> {
   const db = await initDB()
   await db.execute("UPDATE sessions SET tema = ? WHERE id = ?", [tema, id])

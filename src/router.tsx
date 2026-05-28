@@ -6,6 +6,7 @@ import FlashcardLibrary from "./views/FlashcardLibrary"
 import FlashcardEdit from "./views/FlashcardEdit"
 import CornellNotes from "./views/CornellNotes"
 import Timer from "./views/Timer"
+import SessionHistory from "./views/SessionHistory"
 
 // IMPORTANT: createHashRouter is required for Tauri production.
 // createBrowserRouter will break when served from tauri://localhost.
@@ -23,6 +24,7 @@ export const router = createHashRouter([
       { path: "new-card", element: <FlashcardEdit /> },
       { path: "cornell", element: <CornellNotes /> },
       { path: "timer", element: <Timer /> },
+      { path: "sessions", element: <SessionHistory /> },
     ],
   },
 ])

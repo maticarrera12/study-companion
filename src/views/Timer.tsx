@@ -13,7 +13,7 @@ export default function Timer() {
   const phase = useTimerStore((s) => s.phase)
   const sessionId = useTimerStore((s) => s.sessionId)
   const setPaused = useTimerStore((s) => s.setPaused)
-  const { cancel, complete } = useTimerActions()
+  const { cancel, complete, completeBreak, addBreakTime } = useTimerActions()
 
   // If no active session, go home
   if (phase === "idle") {
@@ -41,7 +41,8 @@ export default function Timer() {
       )}
 
       {/* Controls */}
-      <div className="flex gap-3 flex-wrap justify-center">
+      <div className="flex gap-3 flex-col justify-center">
+        <div className="flex gap-3 flex-wrap justify-center">
         <Button
           variant="primary"
           size="lg"
@@ -76,6 +77,24 @@ export default function Timer() {
         <Button variant="danger" size="md" onClick={cancel}>
           Cancelar
         </Button>
+        <Button variant="ghost" size="md" onClick={completeBreak}>
+              Finalizar
+            </Button>
+        </div>
+
+        <div className="flex gap-3 flex-wrap justify-center">
+        {phase === "break" && (
+          <>
+            {[1, 2, 5].map((min) => (
+              <Button key={min} variant="ghost" size="md" onClick={() => addBreakTime(min)}>
+                +{min} min
+              </Button>
+            ))}
+          </>
+        )}
+        </div>
+        
+
       </div>
     </div>
   )

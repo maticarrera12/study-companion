@@ -192,9 +192,18 @@ export default function Home() {
         {/* Recent sessions */}
         {recentSessions.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h2 className="text-text-secondary text-xs font-semibold uppercase tracking-wider">
-              Sesiones recientes
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-text-secondary text-xs font-semibold uppercase tracking-wider">
+                Sesiones recientes
+              </h2>
+              <button
+                type="button"
+                onClick={() => navigate("/sessions")}
+                className="text-text-secondary hover:text-accent text-xs transition-colors duration-100"
+              >
+                Ver todas
+              </button>
+            </div>
             <div className="flex flex-col rounded-lg overflow-hidden border border-border">
               {recentSessions.map((session, i) => (
                 <div
