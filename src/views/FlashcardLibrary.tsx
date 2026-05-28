@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { getAllCards } from "../lib/db/flashcards"
+import { cardHasTag, collectTagsFromCards, parseTags } from "../lib/utils/tags"
 import { Badge } from "../components/ui/Badge"
 import { Toggle } from "../components/ui/Toggle"
 import { Button } from "../components/ui/Button"
@@ -31,17 +32,12 @@ export default function FlashcardLibrary() {
     }
   }, [])
 
-  const availableTags = useMemo(() => {
-    const tags = allCards
-      .map((c) => c.tag)
-      .filter((t) => t && t.trim() !== "")
-    return Array.from(new Set(tags)).sort()
-  }, [allCards])
+  const availableTags = useMemo(() => collectTagsFromCards(allCards), [allCards])
 
   const filteredCards = useMemo(() => {
     return allCards.filter((card) => {
       if (!showInternalized && card.intervalo_actual === 4) return false
-      if (selectedTag && card.tag !== selectedTag) return false
+      if (selectedTag && !cardHasTag(card.tag, selectedTag)) return false
       if (search.trim()) {
         const q = search.trim().toLowerCase()
         const matchFront = card.front.toLowerCase().includes(q)
@@ -154,6 +150,7 @@ interface CardItemProps {
 function CardItem({ card, onClick }: CardItemProps) {
   const isInternalized = card.intervalo_actual === 4
   const missingBack = !card.back || card.back.trim() === ""
+  const tags = parseTags(card.tag)
 
   return (
     <button
@@ -166,9 +163,11 @@ function CardItem({ card, onClick }: CardItemProps) {
       ].join(" ")}
     >
       <p className="text-text-primary font-medium truncate">{card.front}</p>
-      {(card.tag || isInternalized || missingBack) && (
+      {(tags.length > 0 || isInternalized || missingBack) && (
         <div className="flex items-center gap-2 mt-2 flex-wrap">
-          {card.tag && <Badge label={card.tag} variant="default" />}
+          {tags.map((t) => (
+            <Badge key={t} label={t} variant="default" />
+          ))}
           {isInternalized && <Badge label="Internalizada" variant="internalized" />}
           {missingBack && (
             <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-400/20 text-amber-500 border border-amber-400/30">

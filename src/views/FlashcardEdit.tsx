@@ -9,6 +9,7 @@ import {
 import { Input } from "../components/ui/Input"
 import { Button } from "../components/ui/Button"
 import { useUIStore } from "../stores/uiStore"
+import { normalizeTags } from "../lib/utils/tags"
 
 export default function FlashcardEdit() {
   const { id } = useParams<{ id: string }>()
@@ -46,17 +47,18 @@ export default function FlashcardEdit() {
     if (!front.trim() || saving) return
     setSaving(true)
     try {
+      const normalizedTag = normalizeTags(tag)
       if (isEditMode && cardId !== null) {
         await updateFlashcard(cardId, {
           front: front.trim(),
           back: back.trim(),
-          tag: tag.trim(),
+          tag: normalizedTag,
         })
       } else {
         await createFlashcard({
           front: front.trim(),
           back: back.trim(),
-          tag: tag.trim(),
+          tag: normalizedTag,
         })
       }
       navigate(-1)
@@ -143,11 +145,11 @@ export default function FlashcardEdit() {
 
           {/* Tag */}
           <Input
-            label="Etiqueta (opcional)"
+            label="Etiquetas (opcional)"
             value={tag}
             onChange={(e) => setTag(e.target.value)}
-            placeholder="Ej: matemática, historia…"
-            maxLength={60}
+            placeholder="Ej: matemática, historia, examen…"
+            maxLength={120}
           />
         </div>
       </div>
