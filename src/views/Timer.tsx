@@ -11,8 +11,9 @@ export default function Timer() {
   const isPaused = useTimerStore((s) => s.isPaused)
   const topic = useTimerStore((s) => s.topic)
   const phase = useTimerStore((s) => s.phase)
+  const sessionId = useTimerStore((s) => s.sessionId)
   const setPaused = useTimerStore((s) => s.setPaused)
-  const { cancel } = useTimerActions()
+  const { cancel, complete } = useTimerActions()
 
   // If no active session, go home
   if (phase === "idle") {
@@ -40,7 +41,7 @@ export default function Timer() {
       )}
 
       {/* Controls */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap justify-center">
         <Button
           variant="primary"
           size="lg"
@@ -48,6 +49,30 @@ export default function Timer() {
         >
           {isPaused ? "Reanudar" : "Pausar"}
         </Button>
+        {phase === "focus" && (
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={() => {
+              setPaused(true)
+              navigate("/cornell", {
+                state: {
+                  sessionId,
+                  timing: "mid-focus",
+                  breakMin: 0,
+                  sessionTema: topic || null,
+                },
+              })
+            }}
+          >
+            Tomar notas
+          </Button>
+        )}
+        {phase === "focus" && (
+          <Button variant="ghost" size="md" onClick={complete}>
+            Finalizar
+          </Button>
+        )}
         <Button variant="danger" size="md" onClick={cancel}>
           Cancelar
         </Button>

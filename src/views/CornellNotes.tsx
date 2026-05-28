@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useTimerStore } from "../stores/timerStore"
-import { getSettings } from "../lib/store"
+import { getSettings, clearTimerState } from "../lib/store"
 import { saveNote, getNoteBySessionId } from "../lib/db/notes"
 import { createFlashcard } from "../lib/db/flashcards"
+import { completeSession, updateSessionTema } from "../lib/db/sessions"
 import { CornellLayout } from "../components/notes/CornellLayout"
 import { Button } from "../components/ui/Button"
+import { Input } from "../components/ui/Input"
 
 interface CornellRouteState {
   sessionId: number
-  timing: "before" | "during" | "after"
+  timing: "before" | "during" | "after" | "mid-focus"
   breakMin: number
   sessionTema: string | null
   viewMode?: boolean
@@ -27,6 +29,8 @@ export default function CornellNotes() {
   const [flashcardsMessage, setFlashcardsMessage] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isBlurred, setIsBlurred] = useState(false)
+  const [editingTema, setEditingTema] = useState(false)
+  const [tema, setTema] = useState(state?.sessionTema ?? "")
 
   // Redirect if navigated directly without state
   useEffect(() => {
@@ -73,7 +77,22 @@ export default function CornellNotes() {
     return null
   }
 
-  const { sessionId, timing, sessionTema, viewMode } = state
+  const { sessionId, timing, viewMode } = state
+
+  const handleTemaBlur = async () => {
+    await updateSessionTema(sessionId, tema.trim())
+    setEditingTema(false)
+  }
+
+  const handleTemaKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      await updateSessionTema(sessionId, tema.trim())
+      setEditingTema(false)
+    } else if (e.key === "Escape") {
+      setTema(state.sessionTema ?? "")
+      setEditingTema(false)
+    }
+  }
 
   const navigateAfterAction = async () => {
     if (timing === "before") {
@@ -85,8 +104,36 @@ export default function CornellNotes() {
       timerStore.setPhase("break")
       timerStore.setPaused(false)
       navigate("/timer")
+    } else if (timing === "during") {
+      // Break is still counting down: start break timer with remaining seconds
+      const timerStore = useTimerStore.getState()
+      const seconds =
+        breakSecondsLeft !== undefined && breakSecondsLeft > 0
+          ? breakSecondsLeft
+          : state.breakMin * 60
+      timerStore.setDuration(seconds)
+      timerStore.restore({ elapsed: 0 })
+      timerStore.setPhase("break")
+      timerStore.setPaused(false)
+      navigate("/timer")
+    } else if (timing === "mid-focus") {
+      // User finished early: complete the session and start break
+      const store = useTimerStore.getState()
+      const nowSec = Math.floor(Date.now() / 1000)
+      const durationMin = Math.floor(store.elapsed / 60)
+      if (sessionId !== null) {
+        await completeSession(sessionId, nowSec, durationMin)
+      }
+      store.setPomodoroCount(store.pomodoroCountToday + 1)
+      await clearTimerState()
+      const settings = await getSettings()
+      store.setDuration(settings.break_duration_min * 60)
+      store.restore({ elapsed: 0 })
+      store.setPhase("break")
+      store.setPaused(false)
+      navigate("/timer")
     } else {
-      // "during" or "after": break already ran (or running), go home
+      // "after": break already ran, go home
       useTimerStore.getState().reset()
       navigate("/")
     }
@@ -126,7 +173,7 @@ export default function CornellNotes() {
           createFlashcard({
             front: line,
             back: "",
-            tag: sessionTema || "",
+            tag: tema || "",
           }),
         ),
       )
@@ -148,11 +195,39 @@ export default function CornellNotes() {
       <header className="flex items-center justify-between px-6 py-3">
         <div>
           <h1 className="text-text-primary font-semibold">Notas de sesión</h1>
-          {sessionTema && (
-            <p className="text-text-secondary text-sm">{sessionTema}</p>
+          {editingTema ? (
+            <Input
+              value={tema}
+              onChange={(e) => setTema(e.target.value)}
+              onBlur={handleTemaBlur}
+              onKeyDown={handleTemaKeyDown}
+              className="mt-1 text-sm py-1"
+              autoFocus
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingTema(true)}
+              className="flex items-center gap-1 text-text-secondary text-sm hover:text-text-primary transition-colors duration-100 text-left"
+            >
+              <span>{tema || "Sin tema"}</span>
+              <span className="opacity-50 text-xs">✎</span>
+            </button>
           )}
         </div>
         <div className="flex items-center gap-3">
+          {timing === "mid-focus" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                useTimerStore.getState().setPaused(false)
+                navigate("/timer")
+              }}
+            >
+              Volver al timer
+            </Button>
+          )}
           {viewMode && (
             <button
               type="button"
@@ -200,7 +275,7 @@ export default function CornellNotes() {
           )}
         </div>
         <Button variant="primary" size="md" onClick={handleSave} disabled={isSaving}>
-          {isSaving ? "Guardando..." : "Guardar notas"}
+          {isSaving ? "Guardando..." : timing === "mid-focus" ? "Guardar y descansar" : "Guardar notas"}
         </Button>
       </footer>
     </div>

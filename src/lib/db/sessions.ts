@@ -53,6 +53,11 @@ export async function getRecentSessions(limit: number): Promise<Session[]> {
   )
 }
 
+export async function updateSessionTema(id: number, tema: string): Promise<void> {
+  const db = await initDB()
+  await db.execute("UPDATE sessions SET tema = ? WHERE id = ?", [tema, id])
+}
+
 export async function getTodaySessionCount(): Promise<number> {
   const db = await initDB()
   const result = await db.select<[{ count: number }]>(
