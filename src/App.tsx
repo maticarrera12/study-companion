@@ -5,6 +5,7 @@ import { useTimerStore } from "./stores/timerStore"
 import { useReviewStore } from "./stores/reviewStore"
 import { useTimer } from "./hooks/useTimer"
 import { useKeyboard } from "./hooks/useKeyboard"
+import { useWakeLock } from "./hooks/useWakeLock"
 import { updateFlashcardProgress } from "./lib/db/flashcards"
 import { recordReview } from "./lib/db/reviews"
 import { updateLevel, nextReviewDate } from "./lib/sr/algorithm"
@@ -44,6 +45,7 @@ export default function App() {
 
   // useTimer manages the interval — called ONCE here, never in child components
   const timerActions = useTimer()
+  useWakeLock()
 
   useKeyboard({
     pauseResume: () => {
