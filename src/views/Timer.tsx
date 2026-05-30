@@ -76,11 +76,7 @@ export default function Timer() {
         <Button variant="danger" size="md" onClick={cancel}>
           Cancelar
         </Button>
-        <Button variant="ghost" size="md" onClick={completeBreak}>
-              Finalizar
-            </Button>
         </div>
-
         <div className="flex gap-3 flex-wrap justify-center">
         {phase === "break" && (
           <>
