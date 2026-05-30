@@ -73,13 +73,11 @@ export default function Timer() {
             Finalizar
           </Button>
         )}
-        <Button variant="danger" size="md" onClick={cancel}>
-          Cancelar
-        </Button>
-        </div>
-        <div className="flex gap-3 flex-wrap justify-center">
         {phase === "break" && (
           <>
+            <Button variant="ghost" size="md" onClick={completeBreak}>
+              Finalizar
+            </Button>
             {[1, 2, 5].map((min) => (
               <Button key={min} variant="ghost" size="md" onClick={() => addBreakTime(min)}>
                 +{min} min
@@ -87,6 +85,9 @@ export default function Timer() {
             ))}
           </>
         )}
+        <Button variant="danger" size="md" onClick={cancel}>
+          Cancelar
+        </Button>
         </div>
         
 
