@@ -22,10 +22,13 @@ export default function CornellNotes() {
   const navigate = useNavigate()
   const state = location.state as CornellRouteState | null
 
+  const timerDuration = useTimerStore((s) => s.duration)
+  const timerElapsed = useTimerStore((s) => s.elapsed)
+  const breakSecondsLeft = timerDuration - timerElapsed
+
   const [notas, setNotas] = useState("")
   const [preguntas, setPreguntas] = useState("")
   const [resumen, setResumen] = useState("")
-  const [breakSecondsLeft, setBreakSecondsLeft] = useState<number | undefined>(undefined)
   const [flashcardsMessage, setFlashcardsMessage] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isBlurred, setIsBlurred] = useState(false)
@@ -52,25 +55,6 @@ export default function CornellNotes() {
         }
       })
       .catch(console.error)
-  }, [state])
-
-  // Break countdown for "during" mode
-  useEffect(() => {
-    if (!state || state.timing !== "during") return
-    const totalSeconds = state.breakMin * 60
-    setBreakSecondsLeft(totalSeconds)
-
-    const interval = setInterval(() => {
-      setBreakSecondsLeft((prev) => {
-        if (prev === undefined || prev <= 1) {
-          clearInterval(interval)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(interval)
   }, [state])
 
   if (!state || state.sessionId === undefined) {
@@ -105,16 +89,7 @@ export default function CornellNotes() {
       timerStore.setPaused(false)
       navigate("/timer")
     } else if (timing === "during") {
-      // Break is still counting down: start break timer with remaining seconds
-      const timerStore = useTimerStore.getState()
-      const seconds =
-        breakSecondsLeft !== undefined && breakSecondsLeft > 0
-          ? breakSecondsLeft
-          : state.breakMin * 60
-      timerStore.setDuration(seconds)
-      timerStore.restore({ elapsed: 0 })
-      timerStore.setPhase("break")
-      timerStore.setPaused(false)
+      // Break is already running in the global store (started by complete() before navigate)
       navigate("/timer")
     } else if (timing === "mid-focus") {
       // User finished early: complete the session and start break
@@ -221,7 +196,6 @@ export default function CornellNotes() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                useTimerStore.getState().setPaused(false)
                 navigate("/timer")
               }}
             >

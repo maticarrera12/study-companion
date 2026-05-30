@@ -6,6 +6,10 @@ export interface Session {
   tema: string | null
 }
 
+export interface SessionWithNotes extends Session {
+  has_notes: 0 | 1 // SQLite integer — coerce with !!session.has_notes in views
+}
+
 export interface Distraction {
   id: number
   session_id: number
@@ -42,6 +46,7 @@ export interface Review {
 export interface AppSettings {
   pomodoro_duration_min: number // default: 25
   break_duration_min: number // default: 5
+  cornell_enabled: boolean // default: true
   cornell_every_n: number // default: 1
   cornell_timing: "before" | "during" | "after" // default: "during"
 }

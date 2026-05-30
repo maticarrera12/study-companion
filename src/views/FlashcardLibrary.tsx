@@ -1,54 +1,67 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { getAllCards } from "../lib/db/flashcards"
-import { cardHasTag, collectTagsFromCards, parseTags } from "../lib/utils/tags"
+import { getAllCards, searchCards, countCards } from "../lib/db/flashcards"
+import { collectTagsFromCards, parseTags } from "../lib/utils/tags"
+import { useDebounce } from "../hooks/useDebounce"
 import { Badge } from "../components/ui/Badge"
 import { Toggle } from "../components/ui/Toggle"
 import { Button } from "../components/ui/Button"
 import { EmptyState } from "../components/ui/EmptyState"
 import { Input } from "../components/ui/Input"
+import { Pagination } from "../components/ui/Pagination"
 import type { Flashcard } from "../types"
+
+const PAGE_SIZE = 20
 
 export default function FlashcardLibrary() {
   const navigate = useNavigate()
 
-  const [allCards, setAllCards] = useState<Flashcard[]>([])
+  const [availableTags, setAvailableTags] = useState<string[]>([])
+  const [cards, setCards] = useState<Flashcard[]>([])
+  const [totalCards, setTotalCards] = useState(0)
   const [search, setSearch] = useState("")
   const [selectedTag, setSelectedTag] = useState<string>("")
   const [showInternalized, setShowInternalized] = useState(false)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
+  const debouncedSearch = useDebounce(search, 300)
+
+  const totalPages = Math.max(1, Math.ceil(totalCards / PAGE_SIZE))
+
+  // Populate tag dropdown once on mount
+  useEffect(() => {
+    getAllCards().then((all) => {
+      setAvailableTags(collectTagsFromCards(all))
+    })
+  }, [])
+
+  // Fetch paginated results whenever filters or page change
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getAllCards().then((cards) => {
-      if (!cancelled) {
-        setAllCards(cards)
-        setLoading(false)
-      }
+
+    Promise.all([
+      searchCards(debouncedSearch, selectedTag, showInternalized, page, PAGE_SIZE),
+      countCards(debouncedSearch, selectedTag, showInternalized),
+    ]).then(([results, count]) => {
+      if (cancelled) return
+      setCards(results)
+      setTotalCards(count)
+      setLoading(false)
     })
+
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [debouncedSearch, selectedTag, showInternalized, page])
 
-  const availableTags = useMemo(() => collectTagsFromCards(allCards), [allCards])
+  // Reset to page 1 when filters change (but not when page itself changes)
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, selectedTag, showInternalized])
 
-  const filteredCards = useMemo(() => {
-    return allCards.filter((card) => {
-      if (!showInternalized && card.intervalo_actual === 4) return false
-      if (selectedTag && !cardHasTag(card.tag, selectedTag)) return false
-      if (search.trim()) {
-        const q = search.trim().toLowerCase()
-        const matchFront = card.front.toLowerCase().includes(q)
-        const matchBack = card.back.toLowerCase().includes(q)
-        if (!matchFront && !matchBack) return false
-      }
-      return true
-    })
-  }, [allCards, showInternalized, selectedTag, search])
-
-  if (loading) {
+  if (loading && cards.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <span className="text-text-secondary text-sm">Cargando…</span>
@@ -112,32 +125,39 @@ export default function FlashcardLibrary() {
       </div>
 
       {/* Count */}
-      {allCards.length > 0 && (
+      {totalCards > 0 && (
         <div className="px-6 pt-3 pb-1">
           <span className="text-xs text-text-secondary">
-            {filteredCards.length}{" "}
-            {filteredCards.length === 1 ? "flashcard" : "flashcards"}
+            {totalCards} {totalCards === 1 ? "flashcard" : "flashcards"}
           </span>
         </div>
       )}
 
       {/* Card list */}
       <div className="flex-1 overflow-y-auto px-6 py-3">
-        {allCards.length === 0 ? (
+        {totalCards === 0 && !search.trim() && !selectedTag && !loading ? (
           <EmptyState
             message="Aún no tenés flashcards"
             action={{ label: "Crear primera", onClick: () => navigate("/new-card") }}
           />
-        ) : filteredCards.length === 0 ? (
+        ) : cards.length === 0 && !loading ? (
           <EmptyState message="Ninguna card coincide con los filtros" />
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {filteredCards.map((card) => (
+            {cards.map((card) => (
               <CardItem key={card.id} card={card} onClick={() => navigate(`/library/${card.id}`)} />
             ))}
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
     </div>
   )
 }

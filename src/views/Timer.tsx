@@ -55,7 +55,6 @@ export default function Timer() {
             variant="ghost"
             size="md"
             onClick={() => {
-              setPaused(true)
               navigate("/cornell", {
                 state: {
                   sessionId,

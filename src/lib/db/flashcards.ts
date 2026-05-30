@@ -87,3 +87,47 @@ export async function getTodayCreatedCount(): Promise<number> {
   )
   return result[0]?.count ?? 0
 }
+
+// NOTE: SQLite's LOWER() only folds ASCII characters. Non-ASCII accented letters
+// (e.g. É vs é) may not match case-insensitively. Acceptable for current use.
+export async function searchCards(
+  query: string,
+  tag: string,
+  showInternalized: boolean,
+  page: number,
+  pageSize: number = 20,
+): Promise<Flashcard[]> {
+  const db = await initDB()
+  const pat = query.trim() === "" ? "%" : `%${query.trim().toLowerCase()}%`
+  const tagPat = tag.trim() === "" ? "%" : `%${tag.trim().toLowerCase()}%`
+  const offset = (page - 1) * pageSize
+
+  return db.select<Flashcard[]>(
+    `SELECT * FROM flashcards
+     WHERE (LOWER(front) LIKE ? OR LOWER(back) LIKE ? OR LOWER(tag) LIKE ?)
+       AND (? = 1 OR intervalo_actual != 4)
+       AND LOWER(tag) LIKE ?
+     ORDER BY proxima_revision ASC
+     LIMIT ? OFFSET ?`,
+    [pat, pat, pat, showInternalized ? 1 : 0, tagPat, pageSize, offset],
+  )
+}
+
+export async function countCards(
+  query: string,
+  tag: string,
+  showInternalized: boolean,
+): Promise<number> {
+  const db = await initDB()
+  const pat = query.trim() === "" ? "%" : `%${query.trim().toLowerCase()}%`
+  const tagPat = tag.trim() === "" ? "%" : `%${tag.trim().toLowerCase()}%`
+
+  const result = await db.select<[{ count: number }]>(
+    `SELECT COUNT(*) as count FROM flashcards
+     WHERE (LOWER(front) LIKE ? OR LOWER(back) LIKE ? OR LOWER(tag) LIKE ?)
+       AND (? = 1 OR intervalo_actual != 4)
+       AND LOWER(tag) LIKE ?`,
+    [pat, pat, pat, showInternalized ? 1 : 0, tagPat],
+  )
+  return result[0]?.count ?? 0
+}

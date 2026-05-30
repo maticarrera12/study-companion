@@ -18,8 +18,8 @@ vi.mock("./index", () => ({
 }))
 
 // Import AFTER mocks are established
-import { getAllSessions } from "./sessions"
-import type { Session } from "../../types"
+import { getAllSessions, searchSessions, countSessions } from "./sessions"
+import type { Session, SessionWithNotes } from "../../types"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -31,6 +31,20 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     fecha_fin: 1_700_003_600,
     duracion_minutos: 25,
     tema: "Matemáticas",
+    ...overrides,
+  }
+}
+
+function makeSessionWithNotes(
+  overrides: Partial<SessionWithNotes> = {},
+): SessionWithNotes {
+  return {
+    id: 1,
+    fecha_inicio: 1_700_000_000,
+    fecha_fin: 1_700_003_600,
+    duracion_minutos: 25,
+    tema: "Matemáticas",
+    has_notes: 0,
     ...overrides,
   }
 }
@@ -77,69 +91,138 @@ describe("getAllSessions", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Filter logic (mirrors SessionHistory useMemo — plain function extraction)
-// These tests validate the search algorithm used in the view, decoupled from
-// React rendering so they run fast as pure unit tests.
+// searchSessions
 // ---------------------------------------------------------------------------
-function filterSessions(sessions: Session[], search: string): Session[] {
-  if (!search.trim()) return sessions
-  const q = search.trim().toLowerCase()
-  return sessions.filter((s) => (s.tema ?? "").toLowerCase().includes(q))
-}
-
-describe("SessionHistory filter logic", () => {
-  const sessions: Session[] = [
-    makeSession({ id: 1, tema: "Matemáticas" }),
-    makeSession({ id: 2, tema: "Biología celular" }),
-    makeSession({ id: 3, tema: "física" }),
-    makeSession({ id: 4, tema: null }),
-  ]
-
-  it("returns all sessions when search is empty", () => {
-    expect(filterSessions(sessions, "")).toHaveLength(4)
+describe("searchSessions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
-  it("returns all sessions when search is only whitespace", () => {
-    expect(filterSessions(sessions, "   ")).toHaveLength(4)
+  it("empty query returns first page of sessions (LIMIT/OFFSET in SQL)", async () => {
+    const rows = Array.from({ length: 25 }, (_, i) =>
+      makeSessionWithNotes({ id: i + 1, tema: `Tema ${i + 1}` }),
+    )
+    mockSelect.mockResolvedValue(rows)
+
+    const result = await searchSessions("", 1, 25)
+
+    expect(result).toHaveLength(25)
+    const [query, params] = mockSelect.mock.calls[0] as [string, unknown[]]
+    expect(query).toContain("LIMIT")
+    expect(query).toContain("OFFSET")
+    // Empty query uses '%' pattern
+    expect(params).toContain("%")
+    // Offset for page 1 = 0
+    expect(params[params.length - 1]).toBe(0)
   })
 
-  it("matches partial string (case-sensitive input, lower tema)", () => {
-    const result = filterSessions(sessions, "mate")
-    expect(result).toHaveLength(1)
-    expect(result[0].id).toBe(1)
+  it("uses correct OFFSET for page 2", async () => {
+    mockSelect.mockResolvedValue([])
+
+    await searchSessions("", 2, 25)
+
+    const [, params] = mockSelect.mock.calls[0] as [string, unknown[]]
+    // LIMIT=25, OFFSET=25
+    expect(params[params.length - 2]).toBe(25)
+    expect(params[params.length - 1]).toBe(25)
   })
 
-  it("matches case-insensitively (uppercase query)", () => {
-    const result = filterSessions(sessions, "MATE")
-    expect(result).toHaveLength(1)
-    expect(result[0].id).toBe(1)
+  it("builds LIKE pattern from non-empty query", async () => {
+    mockSelect.mockResolvedValue([])
+
+    await searchSessions("fotosíntesis", 1, 25)
+
+    const [, params] = mockSelect.mock.calls[0] as [string, unknown[]]
+    expect(params).toContain("%fotosíntesis%")
   })
 
-  it("matches partial string across multiple results", () => {
-    // "iol" appears in "Biología celular" and "fisiología" — use "bio" which hits id:2
-    // Use a query that matches both id:1 and id:2
-    const result = filterSessions(sessions, "a")
-    const ids = result.map((s) => s.id)
-    // "Matemáticas", "Biología celular", and "física" all contain "a"
-    expect(ids).toContain(1)
-    expect(ids).toContain(2)
-    expect(ids).toContain(3)
+  it("JOINs cornell_notes and searches notas_principales", async () => {
+    mockSelect.mockResolvedValue([])
+
+    await searchSessions("tasa", 1, 25)
+
+    const [query] = mockSelect.mock.calls[0] as [string, unknown[]]
+    expect(query).toContain("LEFT JOIN cornell_notes")
+    expect(query).toContain("notas_principales")
   })
 
-  it("returns empty array when no session matches", () => {
-    const result = filterSessions(sessions, "química")
-    expect(result).toHaveLength(0)
+  it("searches preguntas and resumen fields", async () => {
+    mockSelect.mockResolvedValue([])
+
+    await searchSessions("cadena", 1, 25)
+
+    const [query] = mockSelect.mock.calls[0] as [string, unknown[]]
+    expect(query).toContain("preguntas")
+    expect(query).toContain("resumen")
   })
 
-  it("does not match sessions with null tema when query is non-empty", () => {
-    const result = filterSessions(sessions, "algo")
-    const ids = result.map((s) => s.id)
-    expect(ids).not.toContain(4)
+  it("returns has_notes=1 when cornell row exists", async () => {
+    const rows = [makeSessionWithNotes({ id: 5, has_notes: 1 })]
+    mockSelect.mockResolvedValue(rows)
+
+    const result = await searchSessions("", 1, 25)
+
+    expect(result[0].has_notes).toBe(1)
   })
 
-  it("trims leading/trailing whitespace from query", () => {
-    const result = filterSessions(sessions, "  mate  ")
-    expect(result).toHaveLength(1)
-    expect(result[0].id).toBe(1)
+  it("returns has_notes=0 when no cornell row exists", async () => {
+    const rows = [makeSessionWithNotes({ id: 6, has_notes: 0 })]
+    mockSelect.mockResolvedValue(rows)
+
+    const result = await searchSessions("", 1, 25)
+
+    expect(result[0].has_notes).toBe(0)
+  })
+
+  it("orders results by fecha_inicio DESC", async () => {
+    mockSelect.mockResolvedValue([])
+
+    await searchSessions("", 1)
+
+    const [query] = mockSelect.mock.calls[0] as [string, unknown[]]
+    expect(query).toContain("ORDER BY s.fecha_inicio DESC")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// countSessions
+// ---------------------------------------------------------------------------
+describe("countSessions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("returns numeric count from COUNT(DISTINCT s.id)", async () => {
+    mockSelect.mockResolvedValue([{ count: 30 }])
+
+    const count = await countSessions("")
+
+    expect(count).toBe(30)
+  })
+
+  it("returns 0 when no sessions match", async () => {
+    mockSelect.mockResolvedValue([{ count: 0 }])
+
+    const count = await countSessions("nonexistent")
+
+    expect(count).toBe(0)
+  })
+
+  it("uses COUNT(DISTINCT s.id) in query", async () => {
+    mockSelect.mockResolvedValue([{ count: 5 }])
+
+    await countSessions("test")
+
+    const [query] = mockSelect.mock.calls[0] as [string, unknown[]]
+    expect(query).toContain("COUNT(DISTINCT s.id)")
+  })
+
+  it("applies same pattern as searchSessions for non-empty query", async () => {
+    mockSelect.mockResolvedValue([{ count: 3 }])
+
+    await countSessions("integra")
+
+    const [, params] = mockSelect.mock.calls[0] as [string, unknown[]]
+    expect(params).toContain("%integra%")
   })
 })

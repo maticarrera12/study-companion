@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useTimerStore } from "../stores/timerStore"
 import { useUIStore } from "../stores/uiStore"
 import { getSettings, getTimerState, saveTimerState, clearTimerState } from "../lib/store"
@@ -9,6 +9,7 @@ export function useTimer() {
   const store = useTimerStore()
   const { showConfirm } = useUIStore()
   const navigate = useNavigate()
+  const location = useLocation()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Keep a stable ref to complete() so the interval callback always has the latest version
   const completeRef = useRef<() => Promise<void>>(async () => {})
@@ -103,18 +104,36 @@ export function useTimer() {
     store.setPhase("done")
     await clearTimerState()
 
-    const shouldShowCornell = newCount % settings.cornell_every_n === 0
+    const shouldShowCornell = settings.cornell_enabled && newCount % settings.cornell_every_n === 0
 
     if (shouldShowCornell) {
-      if (settings.cornell_timing === "before" || settings.cornell_timing === "during") {
-        navigate("/cornell", {
-          state: {
-            sessionId: s.sessionId,
-            timing: settings.cornell_timing,
-            breakMin: settings.break_duration_min,
-            sessionTema: s.topic || null,
-          },
-        })
+      if (settings.cornell_timing === "before") {
+        if (location.pathname !== "/cornell") {
+          navigate("/cornell", {
+            state: {
+              sessionId: s.sessionId,
+              timing: settings.cornell_timing,
+              breakMin: settings.break_duration_min,
+              sessionTema: s.topic || null,
+            },
+          })
+        }
+      } else if (settings.cornell_timing === "during") {
+        // Start break before navigating so the global store owns the countdown
+        store.setDuration(settings.break_duration_min * 60)
+        store.restore({ elapsed: 0 })
+        store.setPhase("break")
+        store.setPaused(false)
+        if (location.pathname !== "/cornell") {
+          navigate("/cornell", {
+            state: {
+              sessionId: s.sessionId,
+              timing: settings.cornell_timing,
+              breakMin: settings.break_duration_min,
+              sessionTema: s.topic || null,
+            },
+          })
+        }
       } else {
         // "after": start break first, cornell after break
         store.setDuration(settings.break_duration_min * 60)
@@ -129,7 +148,7 @@ export function useTimer() {
       store.setPhase("break")
       store.setPaused(false)
     }
-  }, [store, stopInterval, navigate])
+  }, [store, stopInterval, navigate, location.pathname])
 
   const completeBreak = useCallback(async () => {
     stopInterval()
@@ -140,19 +159,21 @@ export function useTimer() {
     const shouldShowCornell =
       newCount % settings.cornell_every_n === 0 && settings.cornell_timing === "after"
     store.reset()
-    if (shouldShowCornell) {
-      navigate("/cornell", {
-        state: {
-          sessionId: s.sessionId,
-          timing: "after",
-          breakMin: settings.break_duration_min,
-          sessionTema: s.topic || null,
-        },
-      })
-    } else {
-      navigate("/")
+    if (location.pathname !== "/cornell") {
+      if (shouldShowCornell) {
+        navigate("/cornell", {
+          state: {
+            sessionId: s.sessionId,
+            timing: "after",
+            breakMin: settings.break_duration_min,
+            sessionTema: s.topic || null,
+          },
+        })
+      } else {
+        navigate("/")
+      }
     }
-  }, [store, stopInterval, navigate])
+  }, [store, stopInterval, navigate, location.pathname])
 
   // Keep refs current
   useEffect(() => {

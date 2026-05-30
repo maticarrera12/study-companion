@@ -1,5 +1,5 @@
 import { initDB } from "./index"
-import type { Session } from "../../types"
+import type { Session, SessionWithNotes } from "../../types"
 import { todayStartUnix } from "../utils/date"
 
 const now = () => Math.floor(Date.now() / 1000)
@@ -70,6 +70,54 @@ export async function getTodaySessionCount(): Promise<number> {
   const result = await db.select<[{ count: number }]>(
     "SELECT COUNT(*) as count FROM sessions WHERE fecha_inicio >= ? AND fecha_fin IS NOT NULL",
     [todayStartUnix()],
+  )
+  return result[0]?.count ?? 0
+}
+
+// NOTE: SQLite's LOWER() only folds ASCII characters. Non-ASCII accented letters
+// (e.g. É vs é) may not match case-insensitively. Acceptable for current use.
+export async function searchSessions(
+  query: string,
+  page: number,
+  pageSize: number = 25,
+): Promise<SessionWithNotes[]> {
+  const db = await initDB()
+  const pat = query.trim() === "" ? "%" : `%${query.trim().toLowerCase()}%`
+  const offset = (page - 1) * pageSize
+
+  return db.select<SessionWithNotes[]>(
+    `SELECT s.*, (cn.id IS NOT NULL) AS has_notes
+     FROM sessions s
+     LEFT JOIN cornell_notes cn ON cn.session_id = s.id
+     WHERE s.fecha_fin IS NOT NULL
+       AND (
+         LOWER(COALESCE(s.tema, '')) LIKE ? OR
+         LOWER(COALESCE(cn.notas_principales, '')) LIKE ? OR
+         LOWER(COALESCE(cn.preguntas, '')) LIKE ? OR
+         LOWER(COALESCE(cn.resumen, '')) LIKE ?
+       )
+     ORDER BY s.fecha_inicio DESC
+     LIMIT ? OFFSET ?`,
+    [pat, pat, pat, pat, pageSize, offset],
+  )
+}
+
+export async function countSessions(query: string): Promise<number> {
+  const db = await initDB()
+  const pat = query.trim() === "" ? "%" : `%${query.trim().toLowerCase()}%`
+
+  const result = await db.select<[{ count: number }]>(
+    `SELECT COUNT(DISTINCT s.id) as count
+     FROM sessions s
+     LEFT JOIN cornell_notes cn ON cn.session_id = s.id
+     WHERE s.fecha_fin IS NOT NULL
+       AND (
+         LOWER(COALESCE(s.tema, '')) LIKE ? OR
+         LOWER(COALESCE(cn.notas_principales, '')) LIKE ? OR
+         LOWER(COALESCE(cn.preguntas, '')) LIKE ? OR
+         LOWER(COALESCE(cn.resumen, '')) LIKE ?
+       )`,
+    [pat, pat, pat, pat],
   )
   return result[0]?.count ?? 0
 }

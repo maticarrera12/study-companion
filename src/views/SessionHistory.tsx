@@ -1,51 +1,54 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { getAllSessions } from "../lib/db/sessions"
-import { getSessionIdsWithNotes } from "../lib/db/notes"
+import { searchSessions, countSessions } from "../lib/db/sessions"
+import { useDebounce } from "../hooks/useDebounce"
 import { Input } from "../components/ui/Input"
 import { EmptyState } from "../components/ui/EmptyState"
+import { Pagination } from "../components/ui/Pagination"
 import { formatDate, formatDuration } from "../lib/utils/date"
-import type { Session } from "../types"
+import type { SessionWithNotes } from "../types"
+
+const PAGE_SIZE = 25
 
 export default function SessionHistory() {
   const navigate = useNavigate()
 
-  const [allSessions, setAllSessions] = useState<Session[]>([])
-  const [sessionIdsWithNotes, setSessionIdsWithNotes] = useState<Set<number>>(new Set())
+  const [sessions, setSessions] = useState<SessionWithNotes[]>([])
+  const [totalSessions, setTotalSessions] = useState(0)
   const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
+  const debouncedSearch = useDebounce(search, 300)
+
+  const totalPages = Math.max(1, Math.ceil(totalSessions / PAGE_SIZE))
+
+  // Fetch paginated sessions whenever query or page changes
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getAllSessions()
-      .then((sessions) => {
-        if (cancelled) return
-        setAllSessions(sessions)
-        const ids = sessions.map((s) => s.id)
-        return getSessionIdsWithNotes(ids)
-      })
-      .then((ids) => {
-        if (cancelled) return
-        setSessionIdsWithNotes(new Set(ids ?? []))
-        setLoading(false)
-      })
-      .catch((err) => {
-        console.error("SessionHistory load error:", err)
-        if (!cancelled) setLoading(false)
-      })
+
+    Promise.all([
+      searchSessions(debouncedSearch, page, PAGE_SIZE),
+      countSessions(debouncedSearch),
+    ]).then(([results, count]) => {
+      if (cancelled) return
+      setSessions(results)
+      setTotalSessions(count)
+      setLoading(false)
+    })
+
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [debouncedSearch, page])
 
-  const filteredSessions = useMemo(() => {
-    if (!search.trim()) return allSessions
-    const q = search.trim().toLowerCase()
-    return allSessions.filter((s) => (s.tema ?? "").toLowerCase().includes(q))
-  }, [allSessions, search])
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch])
 
-  if (loading) {
+  if (loading && sessions.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <span className="text-text-secondary text-sm">Cargando…</span>
@@ -77,28 +80,27 @@ export default function SessionHistory() {
       </div>
 
       {/* Count */}
-      {allSessions.length > 0 && (
+      {totalSessions > 0 && (
         <div className="px-6 pt-3 pb-1">
           <span className="text-xs text-text-secondary">
-            {filteredSessions.length}{" "}
-            {filteredSessions.length === 1 ? "sesión" : "sesiones"}
+            {totalSessions} {totalSessions === 1 ? "sesión" : "sesiones"}
           </span>
         </div>
       )}
 
       {/* Session list */}
       <div className="flex-1 overflow-y-auto px-6 py-3">
-        {allSessions.length === 0 ? (
+        {totalSessions === 0 && !search.trim() && !loading ? (
           <EmptyState message="Aún no tenés sesiones completadas" />
-        ) : filteredSessions.length === 0 ? (
+        ) : sessions.length === 0 && !loading ? (
           <EmptyState message="Ninguna sesión coincide con la búsqueda" />
         ) : (
           <div className="flex flex-col gap-2">
-            {filteredSessions.map((session) => (
+            {sessions.map((session) => (
               <SessionCard
                 key={session.id}
                 session={session}
-                hasNotes={sessionIdsWithNotes.has(session.id)}
+                hasNotes={!!session.has_notes}
                 onNotesClick={() =>
                   navigate("/cornell", {
                     state: {
@@ -115,12 +117,20 @@ export default function SessionHistory() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+      />
     </div>
   )
 }
 
 interface SessionCardProps {
-  session: Session
+  session: SessionWithNotes
   hasNotes: boolean
   onNotesClick: () => void
 }

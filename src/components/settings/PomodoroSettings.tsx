@@ -177,6 +177,7 @@ function DurationCard({ icon, label, value, min, max, onChange }: DurationCardPr
 export function PomodoroSettingsPanel() {
   const [pomodoroDuration, setPomodoroDuration] = useState(25)
   const [breakDuration, setBreakDuration] = useState(5)
+  const [cornellEnabled, setCornellEnabled] = useState(true)
   const [cornellEveryN, setCornellEveryN] = useState(1)
   const [cornellTiming, setCornellTiming] = useState<AppSettings["cornell_timing"]>("during")
   const loadedRef = useRef(false)
@@ -196,6 +197,11 @@ export function PomodoroSettingsPanel() {
     persistSettings({ break_duration_min: value })
   }
 
+  function updateCornellEnabled(value: boolean) {
+    setCornellEnabled(value)
+    persistSettings({ cornell_enabled: value })
+  }
+
   function updateCornellEveryN(value: number) {
     setCornellEveryN(value)
     persistSettings({ cornell_every_n: value })
@@ -212,6 +218,7 @@ export function PomodoroSettingsPanel() {
       if (cancelled) return
       setPomodoroDuration(s.pomodoro_duration_min)
       setBreakDuration(s.break_duration_min)
+      setCornellEnabled(s.cornell_enabled)
       setCornellEveryN(s.cornell_every_n)
       setCornellTiming(s.cornell_timing)
       loadedRef.current = true
@@ -247,8 +254,25 @@ export function PomodoroSettingsPanel() {
           <div className="flex items-center gap-2">
             <ListIcon />
             <span className="text-sm text-text-secondary">Cornell</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={cornellEnabled}
+              onClick={() => updateCornellEnabled(!cornellEnabled)}
+              className={[
+                "relative w-8 h-4 shrink-0 rounded-full transition-colors duration-150",
+                cornellEnabled ? "bg-accent" : "bg-border",
+              ].join(" ")}
+            >
+              <span
+                className={[
+                  "absolute left-0.5 top-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-150",
+                  cornellEnabled ? "translate-x-4" : "translate-x-0",
+                ].join(" ")}
+              />
+            </button>
           </div>
-          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+          <label className={["flex items-center gap-1.5 text-xs text-text-secondary transition-opacity", cornellEnabled ? "" : "opacity-40 pointer-events-none"].join(" ")}>
             Cada
             <NumericInput
               value={cornellEveryN}
@@ -268,7 +292,7 @@ export function PomodoroSettingsPanel() {
         </div>
 
         <div
-          className="grid grid-cols-3 rounded-lg border border-border overflow-hidden"
+          className={["grid grid-cols-3 rounded-lg border border-border overflow-hidden transition-opacity", cornellEnabled ? "" : "opacity-40 pointer-events-none"].join(" ")}
           role="radiogroup"
           aria-label="Cuándo mostrar Cornell"
         >

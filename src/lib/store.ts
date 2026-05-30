@@ -7,6 +7,7 @@ let _settingsSaveQueue: Promise<void> = Promise.resolve()
 const DEFAULT_SETTINGS: AppSettings = {
   pomodoro_duration_min: 25,
   break_duration_min: 5,
+  cornell_enabled: true,
   cornell_every_n: 1,
   cornell_timing: "during",
 }

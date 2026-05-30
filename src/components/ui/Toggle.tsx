@@ -18,14 +18,14 @@ export function Toggle({ checked, onChange, label }: ToggleProps) {
       </span>
       <span
         className={[
-          "relative w-10 h-5 rounded-full transition-colors duration-100",
+          "relative w-10 h-5 shrink-0 rounded-full transition-colors duration-100",
           checked ? "bg-accent" : "bg-border",
         ].join(" ")}
       >
         <span
           className={[
-            "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-100",
-            checked ? "translate-x-5" : "translate-x-0.5",
+            "absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-100",
+            checked ? "translate-x-5" : "translate-x-0",
           ].join(" ")}
         />
       </span>
