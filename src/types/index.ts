@@ -49,6 +49,9 @@ export interface AppSettings {
   cornell_enabled: boolean // default: true
   cornell_every_n: number // default: 1
   cornell_timing: "before" | "during" | "after" // default: "during"
+  sound_enabled: boolean // default: true
+  flash_enabled: boolean // default: true
+  vibration_enabled: boolean // default: true
 }
 
 export interface PersistedTimerState {

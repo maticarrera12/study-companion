@@ -14,6 +14,7 @@ import { FloatingButton } from "./components/timer/FloatingButton"
 import { DistractionModal } from "./components/timer/DistractionModal"
 import { ConfirmDialog } from "./components/ui/ConfirmDialog"
 import { RecoveryBanner } from "./components/ui/RecoveryBanner"
+import { FlashOverlay } from "./components/ui/FlashOverlay"
 import { TimerContext } from "./contexts/TimerContext"
 import { useUIStore } from "./stores/uiStore"
 
@@ -86,6 +87,8 @@ export default function App() {
         <ConfirmDialog />
         {/* Global distraction modal — portal-style, mounted once */}
         <DistractionModal />
+        {/* Flash overlay — full-screen, pointer-events-none, mounted once */}
+        <FlashOverlay />
         {/* Floating button — visible only during focus phase */}
         <FloatingButton />
         {/* Main content — top padding when TimerBar is visible */}

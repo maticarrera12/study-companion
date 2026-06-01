@@ -4,12 +4,14 @@ import { useTimerStore } from "../stores/timerStore"
 import { useUIStore } from "../stores/uiStore"
 import { getSettings, getTimerState, saveTimerState, clearTimerState } from "../lib/store"
 import { createSession, completeSession, abandonSession } from "../lib/db/sessions"
+import { useTimerAlerts } from "./useTimerAlerts"
 
 export function useTimer() {
   const store = useTimerStore()
   const { showConfirm } = useUIStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const { triggerAlerts } = useTimerAlerts()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Keep a stable ref to complete() so the interval callback always has the latest version
   const completeRef = useRef<() => Promise<void>>(async () => {})
@@ -90,6 +92,7 @@ export function useTimer() {
 
   const complete = useCallback(async () => {
     stopInterval()
+    await triggerAlerts("focus")
     const s = useTimerStore.getState()
     const settings = await getSettings()
     const now = Math.floor(Date.now() / 1000)
@@ -148,10 +151,11 @@ export function useTimer() {
       store.setPhase("break")
       store.setPaused(false)
     }
-  }, [store, stopInterval, navigate, location.pathname])
+  }, [store, stopInterval, navigate, location.pathname, triggerAlerts])
 
   const completeBreak = useCallback(async () => {
     stopInterval()
+    await triggerAlerts("break")
     await clearTimerState()
     const s = useTimerStore.getState()
     const settings = await getSettings()
@@ -173,7 +177,7 @@ export function useTimer() {
         navigate("/")
       }
     }
-  }, [store, stopInterval, navigate, location.pathname])
+  }, [store, stopInterval, navigate, location.pathname, triggerAlerts])
 
   // Keep refs current
   useEffect(() => {

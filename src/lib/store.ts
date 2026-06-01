@@ -10,7 +10,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   cornell_enabled: true,
   cornell_every_n: 1,
   cornell_timing: "during",
+  sound_enabled: true,
+  flash_enabled: true,
+  vibration_enabled: true,
 }
+
+export { DEFAULT_SETTINGS }
 
 export async function getStore(): Promise<Store> {
   if (!_store) {

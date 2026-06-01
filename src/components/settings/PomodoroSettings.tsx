@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type ReactNode } from "react"
 import { getSettings, saveSettings } from "../../lib/store"
 import type { AppSettings } from "../../types"
+import { Toggle } from "../ui/Toggle"
 
 const timingOptions: { label: string; value: AppSettings["cornell_timing"] }[] = [
   { label: "Antes", value: "before" },
@@ -180,6 +181,9 @@ export function PomodoroSettingsPanel() {
   const [cornellEnabled, setCornellEnabled] = useState(true)
   const [cornellEveryN, setCornellEveryN] = useState(1)
   const [cornellTiming, setCornellTiming] = useState<AppSettings["cornell_timing"]>("during")
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [flashEnabled, setFlashEnabled] = useState(true)
+  const [vibrationEnabled, setVibrationEnabled] = useState(true)
   const loadedRef = useRef(false)
 
   function persistSettings(partial: Partial<AppSettings>) {
@@ -212,6 +216,21 @@ export function PomodoroSettingsPanel() {
     persistSettings({ cornell_timing: value })
   }
 
+  function updateSoundEnabled(value: boolean) {
+    setSoundEnabled(value)
+    persistSettings({ sound_enabled: value })
+  }
+
+  function updateFlashEnabled(value: boolean) {
+    setFlashEnabled(value)
+    persistSettings({ flash_enabled: value })
+  }
+
+  function updateVibrationEnabled(value: boolean) {
+    setVibrationEnabled(value)
+    persistSettings({ vibration_enabled: value })
+  }
+
   useEffect(() => {
     let cancelled = false
     getSettings().then((s) => {
@@ -221,6 +240,9 @@ export function PomodoroSettingsPanel() {
       setCornellEnabled(s.cornell_enabled)
       setCornellEveryN(s.cornell_every_n)
       setCornellTiming(s.cornell_timing)
+      setSoundEnabled(s.sound_enabled)
+      setFlashEnabled(s.flash_enabled)
+      setVibrationEnabled(s.vibration_enabled)
       loadedRef.current = true
     })
     return () => {
@@ -316,6 +338,29 @@ export function PomodoroSettingsPanel() {
               </button>
             )
           })}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+          Notifications
+        </span>
+        <div className="flex flex-col gap-3">
+          <Toggle
+            checked={soundEnabled}
+            onChange={updateSoundEnabled}
+            label="Sound"
+          />
+          <Toggle
+            checked={flashEnabled}
+            onChange={updateFlashEnabled}
+            label="Flash"
+          />
+          <Toggle
+            checked={vibrationEnabled}
+            onChange={updateVibrationEnabled}
+            label="Vibration (mobile only)"
+          />
         </div>
       </div>
     </div>
