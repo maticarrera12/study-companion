@@ -88,6 +88,7 @@ export default function FlashcardReview() {
         <FlashcardFace
           front={currentCard.front}
           back={currentCard.back}
+          tag={currentCard.tag}
           isRevealed={isRevealed}
         />
 
