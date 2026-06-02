@@ -18,6 +18,7 @@ interface TimerActions {
   setPhase(phase: TimerPhase): void
   setSessionId(id: number | null): void
   tick(): void
+  setElapsed(n: number): void
   setPaused(val: boolean): void
   setTopic(t: string): void
   setDuration(s: number): void
@@ -41,6 +42,7 @@ export const useTimerStore = create<TimerState & TimerActions>()((set) => ({
   setPhase: (phase) => set({ phase }),
   setSessionId: (id) => set({ sessionId: id }),
   tick: () => set((s) => ({ elapsed: s.elapsed + 1 })),
+  setElapsed: (n) => set({ elapsed: n }),
   setPaused: (val) => set({ isPaused: val }),
   setTopic: (t) => set({ topic: t }),
   setDuration: (s) => set({ duration: s }),
