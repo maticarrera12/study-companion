@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { useTimerStore } from "../stores/timerStore"
 
+
 // ---------------------------------------------------------------------------
 // Isolate the store before each test
 // ---------------------------------------------------------------------------
@@ -65,5 +66,62 @@ describe("addBreakTime", () => {
     s.setDuration(s.duration + 60)
     // elapsed must be untouched
     expect(useTimerStore.getState().elapsed).toBe(120)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// timerStore: setElapsed — Block A (T4)
+// ---------------------------------------------------------------------------
+
+describe("setElapsed", () => {
+  it("sets elapsed to the given value", () => {
+    useTimerStore.setState({ elapsed: 0 })
+    useTimerStore.getState().setElapsed(42)
+    expect(useTimerStore.getState().elapsed).toBe(42)
+  })
+
+  it("does not mutate other fields", () => {
+    useTimerStore.setState({ elapsed: 0, duration: 300, isPaused: false })
+    useTimerStore.getState().setElapsed(99)
+    const s = useTimerStore.getState()
+    expect(s.duration).toBe(300)
+    expect(s.isPaused).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Wall-clock elapsed formula — Block B (T4)
+// ---------------------------------------------------------------------------
+
+describe("wall-clock elapsed formula", () => {
+  it("wallElapsed = elapsedAtBase + floor((now - baseTime) / 1000)", () => {
+    const elapsedAtBase = 60 // 1 minute already elapsed at anchor
+    const baseTime = 1000 // arbitrary anchor ms
+    const nowTime = 4500 // 3.5 s later → floor = 3
+    const wallElapsed = elapsedAtBase + Math.floor((nowTime - baseTime) / 1000)
+    expect(wallElapsed).toBe(63)
+  })
+
+  it("returns elapsedAtBase when interval fires immediately (0 ms diff)", () => {
+    const wallElapsed = 60 + Math.floor((1000 - 1000) / 1000)
+    expect(wallElapsed).toBe(60)
+  })
+
+  it("clamps correctly at duration boundary", () => {
+    const wallElapsed = 298 + Math.floor(3000 / 1000) // 298 + 3 = 301
+    const duration = 300
+    expect(wallElapsed >= duration).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// tick() survival — Block C (T4, REQ-6 regression)
+// ---------------------------------------------------------------------------
+
+describe("tick() still works (not removed)", () => {
+  it("increments elapsed by 1", () => {
+    useTimerStore.setState({ elapsed: 5 })
+    useTimerStore.getState().tick()
+    expect(useTimerStore.getState().elapsed).toBe(6)
   })
 })

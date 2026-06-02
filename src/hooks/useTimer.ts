@@ -16,6 +16,8 @@ export function useTimer() {
   // Keep a stable ref to complete() so the interval callback always has the latest version
   const completeRef = useRef<() => Promise<void>>(async () => {})
   const completeBreakRef = useRef<() => Promise<void>>(async () => {})
+  const tickBaseTimeRef = useRef<number>(0)
+  const elapsedAtBaseRef = useRef<number>(0)
 
   const persist = useCallback(() => {
     const s = useTimerStore.getState()
@@ -39,11 +41,16 @@ export function useTimer() {
 
   const startInterval = useCallback(() => {
     stopInterval()
+    tickBaseTimeRef.current = Date.now()
+    elapsedAtBaseRef.current = useTimerStore.getState().elapsed
     intervalRef.current = setInterval(() => {
       const s = useTimerStore.getState()
       if (s.isPaused || s.phase === "idle" || s.phase === "done") return
 
-      if (s.elapsed + 1 >= s.duration) {
+      const wallElapsed =
+        elapsedAtBaseRef.current + Math.floor((Date.now() - tickBaseTimeRef.current) / 1000)
+
+      if (wallElapsed >= s.duration) {
         // Use the ref so we always call the current version of complete/completeBreak
         if (s.phase === "focus") {
           completeRef.current().catch(console.error)
@@ -51,7 +58,7 @@ export function useTimer() {
           completeBreakRef.current().catch(console.error)
         }
       } else {
-        useTimerStore.getState().tick()
+        useTimerStore.getState().setElapsed(wallElapsed)
         persist()
       }
     }, 1000)
