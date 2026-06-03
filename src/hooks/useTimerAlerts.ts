@@ -1,22 +1,38 @@
-import { useRef } from "react"
+import { useRef, useCallback } from "react"
 import { getSettings } from "../lib/store"
 import { useUIStore } from "../stores/uiStore"
 
 export function useTimerAlerts(): {
   triggerAlerts: (phase: "focus" | "break") => Promise<void>
+  initAudio: () => void
 } {
   const audioCtxRef = useRef<AudioContext | null>(null)
+
+  const initAudio = useCallback((): void => {
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        audioCtxRef.current = new AudioContext()
+      }
+      if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {})
+      }
+    } catch {
+      // Web Audio API unavailable
+    }
+  }, [])
 
   async function triggerAlerts(_phase: "focus" | "break"): Promise<void> {
     const settings = await getSettings()
 
     if (settings.sound_enabled) {
       try {
-        if (!audioCtxRef.current) {
+        if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
           audioCtxRef.current = new AudioContext()
         }
         const ctx = audioCtxRef.current
-        await ctx.resume()
+        if (ctx.state === "suspended") {
+          await ctx.resume()
+        }
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.connect(gain)
@@ -43,5 +59,5 @@ export function useTimerAlerts(): {
     }
   }
 
-  return { triggerAlerts }
+  return { triggerAlerts, initAudio }
 }

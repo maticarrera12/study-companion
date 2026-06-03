@@ -11,7 +11,7 @@ export function useTimer() {
   const { showConfirm } = useUIStore()
   const navigate = useNavigate()
   const location = useLocation()
-  const { triggerAlerts } = useTimerAlerts()
+  const { triggerAlerts, initAudio } = useTimerAlerts()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Keep a stable ref to complete() so the interval callback always has the latest version
   const completeRef = useRef<() => Promise<void>>(async () => {})
@@ -197,6 +197,7 @@ export function useTimer() {
 
   const start = useCallback(
     async (topic: string) => {
+      initAudio()
       const settings = await getSettings()
       const durationSec = settings.pomodoro_duration_min * 60
       const sessionId = await createSession(topic || null)
@@ -207,7 +208,7 @@ export function useTimer() {
       store.setPhase("focus")
       store.setPaused(false)
     },
-    [store],
+    [store, initAudio],
   )
 
   const pause = useCallback(() => {
@@ -216,8 +217,9 @@ export function useTimer() {
   }, [store, persist])
 
   const resume = useCallback(() => {
+    initAudio()
     store.setPaused(false)
-  }, [store])
+  }, [store, initAudio])
 
   const cancel = useCallback(() => {
     showConfirm({
