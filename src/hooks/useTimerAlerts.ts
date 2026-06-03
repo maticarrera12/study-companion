@@ -16,6 +16,7 @@ export function useTimerAlerts(): {
           audioCtxRef.current = new AudioContext()
         }
         const ctx = audioCtxRef.current
+        await ctx.resume()
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.connect(gain)
