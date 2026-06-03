@@ -5,8 +5,17 @@ import { useUIStore } from "../stores/uiStore"
 export function useTimerAlerts(): {
   triggerAlerts: (phase: "focus" | "break") => Promise<void>
   initAudio: () => void
+  stopAudio: () => void
 } {
   const audioCtxRef = useRef<AudioContext | null>(null)
+  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopAudio = useCallback((): void => {
+    if (keepAliveRef.current) {
+      clearInterval(keepAliveRef.current)
+      keepAliveRef.current = null
+    }
+  }, [])
 
   const initAudio = useCallback((): void => {
     try {
@@ -16,10 +25,26 @@ export function useTimerAlerts(): {
       if (audioCtxRef.current.state === "suspended") {
         audioCtxRef.current.resume().catch(() => {})
       }
+
+      // Prevent WKWebView from suspending the AudioContext during a long session
+      stopAudio()
+      keepAliveRef.current = setInterval(() => {
+        const ctx = audioCtxRef.current
+        if (!ctx || ctx.state === "closed") return
+        if (ctx.state === "suspended") {
+          ctx.resume().catch(() => {})
+          return
+        }
+        const buf = ctx.createBuffer(1, 1, ctx.sampleRate)
+        const src = ctx.createBufferSource()
+        src.buffer = buf
+        src.connect(ctx.destination)
+        src.start()
+      }, 20_000)
     } catch {
       // Web Audio API unavailable
     }
-  }, [])
+  }, [stopAudio])
 
   async function triggerAlerts(_phase: "focus" | "break"): Promise<void> {
     const settings = await getSettings()
@@ -59,5 +84,5 @@ export function useTimerAlerts(): {
     }
   }
 
-  return { triggerAlerts, initAudio }
+  return { triggerAlerts, initAudio, stopAudio }
 }

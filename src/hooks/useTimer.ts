@@ -11,7 +11,7 @@ export function useTimer() {
   const { showConfirm } = useUIStore()
   const navigate = useNavigate()
   const location = useLocation()
-  const { triggerAlerts, initAudio } = useTimerAlerts()
+  const { triggerAlerts, initAudio, stopAudio } = useTimerAlerts()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Keep a stable ref to complete() so the interval callback always has the latest version
   const completeRef = useRef<() => Promise<void>>(async () => {})
@@ -81,7 +81,10 @@ export function useTimer() {
       })
       .catch(console.error)
 
-    return () => stopInterval()
+    return () => {
+      stopInterval()
+      stopAudio()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -229,11 +232,12 @@ export function useTimer() {
         if (s.sessionId !== null) await abandonSession(s.sessionId)
         await clearTimerState()
         stopInterval()
+        stopAudio()
         store.reset()
         navigate("/")
       },
     })
-  }, [showConfirm, stopInterval, store, navigate])
+  }, [showConfirm, stopInterval, stopAudio, store, navigate])
 
   const addBreakTime = useCallback((minutes: number) => {
     const s = useTimerStore.getState()
