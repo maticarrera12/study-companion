@@ -11,7 +11,13 @@ export function useTimer() {
   const { showConfirm } = useUIStore()
   const navigate = useNavigate()
   const location = useLocation()
-  const { triggerAlerts, initAudio, stopAudio } = useTimerAlerts()
+  const {
+    triggerAlerts,
+    initAudio,
+    stopAudio,
+    scheduleCompletionNotification,
+    cancelCompletionNotification,
+  } = useTimerAlerts()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Keep a stable ref to complete() so the interval callback always has the latest version
   const completeRef = useRef<() => Promise<void>>(async () => {})
@@ -103,6 +109,7 @@ export function useTimer() {
   const complete = useCallback(async () => {
     stopInterval()
     await triggerAlerts("focus")
+    await cancelCompletionNotification()
     const s = useTimerStore.getState()
     const settings = await getSettings()
     const now = Math.floor(Date.now() / 1000)
@@ -137,6 +144,10 @@ export function useTimer() {
         store.restore({ elapsed: 0 })
         store.setPhase("break")
         store.setPaused(false)
+        await scheduleCompletionNotification(
+          "break",
+          Date.now() + settings.break_duration_min * 60 * 1000,
+        )
         if (location.pathname !== "/cornell") {
           navigate("/cornell", {
             state: {
@@ -153,6 +164,10 @@ export function useTimer() {
         store.restore({ elapsed: 0 })
         store.setPhase("break")
         store.setPaused(false)
+        await scheduleCompletionNotification(
+          "break",
+          Date.now() + settings.break_duration_min * 60 * 1000,
+        )
       }
     } else {
       // No cornell: go straight to break
@@ -160,12 +175,25 @@ export function useTimer() {
       store.restore({ elapsed: 0 })
       store.setPhase("break")
       store.setPaused(false)
+      await scheduleCompletionNotification(
+        "break",
+        Date.now() + settings.break_duration_min * 60 * 1000,
+      )
     }
-  }, [store, stopInterval, navigate, location.pathname, triggerAlerts])
+  }, [
+    store,
+    stopInterval,
+    navigate,
+    location.pathname,
+    triggerAlerts,
+    cancelCompletionNotification,
+    scheduleCompletionNotification,
+  ])
 
   const completeBreak = useCallback(async () => {
     stopInterval()
     await triggerAlerts("break")
+    await cancelCompletionNotification()
     await clearTimerState()
     const s = useTimerStore.getState()
     const settings = await getSettings()
@@ -187,7 +215,7 @@ export function useTimer() {
         navigate("/")
       }
     }
-  }, [store, stopInterval, navigate, location.pathname, triggerAlerts])
+  }, [store, stopInterval, navigate, location.pathname, triggerAlerts, cancelCompletionNotification])
 
   // Keep refs current
   useEffect(() => {
@@ -210,25 +238,33 @@ export function useTimer() {
       store.restore({ elapsed: 0, wasRestored: false })
       store.setPhase("focus")
       store.setPaused(false)
+      await scheduleCompletionNotification("focus", Date.now() + durationSec * 1000)
     },
-    [store, initAudio],
+    [store, initAudio, scheduleCompletionNotification],
   )
 
   const pause = useCallback(() => {
     store.setPaused(true)
     persist()
-  }, [store, persist])
+    cancelCompletionNotification().catch(console.error)
+  }, [store, persist, cancelCompletionNotification])
 
   const resume = useCallback(() => {
     initAudio()
     store.setPaused(false)
-  }, [store, initAudio])
+    const s = useTimerStore.getState()
+    const targetMs = Date.now() + (s.duration - s.elapsed) * 1000
+    scheduleCompletionNotification(s.phase === "break" ? "break" : "focus", targetMs).catch(
+      console.error,
+    )
+  }, [store, initAudio, scheduleCompletionNotification])
 
   const cancel = useCallback(() => {
     showConfirm({
       message: "¿Cancelás el pomodoro? Se perderá el progreso.",
       onConfirm: async () => {
         const s = useTimerStore.getState()
+        await cancelCompletionNotification()
         if (s.sessionId !== null) await abandonSession(s.sessionId)
         await clearTimerState()
         stopInterval()
@@ -237,12 +273,19 @@ export function useTimer() {
         navigate("/")
       },
     })
-  }, [showConfirm, stopInterval, stopAudio, store, navigate])
+  }, [showConfirm, stopInterval, stopAudio, store, navigate, cancelCompletionNotification])
 
-  const addBreakTime = useCallback((minutes: number) => {
-    const s = useTimerStore.getState()
-    s.setDuration(s.duration + minutes * 60)
-  }, [])
+  const addBreakTime = useCallback(
+    async (minutes: number) => {
+      await cancelCompletionNotification()
+      const s = useTimerStore.getState()
+      const newDuration = s.duration + minutes * 60
+      s.setDuration(newDuration)
+      const targetMs = Date.now() + (newDuration - s.elapsed) * 1000
+      await scheduleCompletionNotification("break", targetMs)
+    },
+    [cancelCompletionNotification, scheduleCompletionNotification],
+  )
 
   return { start, pause, resume, cancel, complete, completeBreak, addBreakTime }
 }

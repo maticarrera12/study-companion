@@ -1,11 +1,22 @@
 import { useRef, useCallback } from "react"
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+  cancel as cancelNotifications,
+  Schedule,
+} from "@tauri-apps/plugin-notification"
 import { getSettings } from "../lib/store"
 import { useUIStore } from "../stores/uiStore"
+
+const NOTIFICATION_ID = 1
 
 export function useTimerAlerts(): {
   triggerAlerts: (phase: "focus" | "break") => Promise<void>
   initAudio: () => void
   stopAudio: () => void
+  scheduleCompletionNotification: (phase: "focus" | "break", targetMs: number) => Promise<void>
+  cancelCompletionNotification: () => Promise<void>
 } {
   const audioCtxRef = useRef<AudioContext | null>(null)
   const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -84,5 +95,38 @@ export function useTimerAlerts(): {
     }
   }
 
-  return { triggerAlerts, initAudio, stopAudio }
+  async function scheduleCompletionNotification(
+    phase: "focus" | "break",
+    targetMs: number,
+  ): Promise<void> {
+    const settings = await getSettings()
+    if (!settings.sound_enabled) return
+
+    let granted = await isPermissionGranted()
+    if (!granted) {
+      const permission = await requestPermission()
+      granted = permission === "granted"
+    }
+    if (!granted) return // silent no-op on denial
+
+    await cancelNotifications([NOTIFICATION_ID])
+    sendNotification({
+      id: NOTIFICATION_ID,
+      title: phase === "focus" ? "Pomodoro complete" : "Break complete",
+      body: phase === "focus" ? "Time for a break." : "Back to focus.",
+      schedule: Schedule.at(new Date(targetMs)),
+    })
+  }
+
+  async function cancelCompletionNotification(): Promise<void> {
+    await cancelNotifications([NOTIFICATION_ID])
+  }
+
+  return {
+    triggerAlerts,
+    initAudio,
+    stopAudio,
+    scheduleCompletionNotification,
+    cancelCompletionNotification,
+  }
 }

@@ -18,6 +18,28 @@ vi.mock("../lib/store", () => ({
   getSettings: mockGetSettings,
 }))
 
+const {
+  mockIsPermissionGranted,
+  mockRequestPermission,
+  mockSendNotification,
+  mockCancelNotifications,
+} = vi.hoisted(() => ({
+  mockIsPermissionGranted: vi.fn(),
+  mockRequestPermission: vi.fn(),
+  mockSendNotification: vi.fn(),
+  mockCancelNotifications: vi.fn(),
+}))
+
+vi.mock("@tauri-apps/plugin-notification", () => ({
+  isPermissionGranted: mockIsPermissionGranted,
+  requestPermission: mockRequestPermission,
+  sendNotification: mockSendNotification,
+  cancel: mockCancelNotifications,
+  Schedule: {
+    at: (date: Date) => ({ at: { date, repeating: false, allowWhileIdle: false } }),
+  },
+}))
+
 const { mockTriggerFlash } = vi.hoisted(() => ({
   mockTriggerFlash: vi.fn(),
 }))
@@ -95,6 +117,9 @@ function buildAudioContextMock() {
 describe("useTimerAlerts", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockIsPermissionGranted.mockResolvedValue(true)
+    mockRequestPermission.mockResolvedValue("granted")
+    mockCancelNotifications.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -219,5 +244,66 @@ describe("useTimerAlerts", () => {
 
     const { result } = renderHook(() => useTimerAlerts())
     await expect(result.current.triggerAlerts("focus")).resolves.not.toThrow()
+  })
+
+  // -------------------------------------------------------------------------
+  // Native completion notification
+  // -------------------------------------------------------------------------
+
+  describe("scheduleCompletionNotification", () => {
+    it("schedules a notification at targetMs when sound_enabled is true", async () => {
+      mockGetSettings.mockResolvedValue(makeSettings({ sound_enabled: true }))
+      const targetMs = Date.now() + 60_000
+
+      const { result } = renderHook(() => useTimerAlerts())
+      await result.current.scheduleCompletionNotification("focus", targetMs)
+
+      expect(mockCancelNotifications).toHaveBeenCalledWith([1])
+      expect(mockSendNotification).toHaveBeenCalledOnce()
+      const call = mockSendNotification.mock.calls[0][0]
+      expect(call.id).toBe(1)
+      expect(call.schedule.at.date).toEqual(new Date(targetMs))
+    })
+
+    it("does not schedule when sound_enabled is false", async () => {
+      mockGetSettings.mockResolvedValue(makeSettings({ sound_enabled: false }))
+
+      const { result } = renderHook(() => useTimerAlerts())
+      await result.current.scheduleCompletionNotification("focus", Date.now() + 60_000)
+
+      expect(mockSendNotification).not.toHaveBeenCalled()
+    })
+
+    it("does not schedule when permission is denied", async () => {
+      mockGetSettings.mockResolvedValue(makeSettings({ sound_enabled: true }))
+      mockIsPermissionGranted.mockResolvedValue(false)
+      mockRequestPermission.mockResolvedValue("denied")
+
+      const { result } = renderHook(() => useTimerAlerts())
+      await result.current.scheduleCompletionNotification("focus", Date.now() + 60_000)
+
+      expect(mockRequestPermission).toHaveBeenCalledOnce()
+      expect(mockSendNotification).not.toHaveBeenCalled()
+    })
+
+    it("requests permission only when not already granted", async () => {
+      mockGetSettings.mockResolvedValue(makeSettings({ sound_enabled: true }))
+      mockIsPermissionGranted.mockResolvedValue(true)
+
+      const { result } = renderHook(() => useTimerAlerts())
+      await result.current.scheduleCompletionNotification("focus", Date.now() + 60_000)
+
+      expect(mockRequestPermission).not.toHaveBeenCalled()
+      expect(mockSendNotification).toHaveBeenCalledOnce()
+    })
+  })
+
+  describe("cancelCompletionNotification", () => {
+    it("cancels the fixed notification id", async () => {
+      const { result } = renderHook(() => useTimerAlerts())
+      await result.current.cancelCompletionNotification()
+
+      expect(mockCancelNotifications).toHaveBeenCalledWith([1])
+    })
   })
 })

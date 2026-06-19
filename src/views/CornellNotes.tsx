@@ -5,6 +5,7 @@ import { getSettings, clearTimerState } from "../lib/store"
 import { saveNote, getNoteBySessionId } from "../lib/db/notes"
 import { createFlashcard } from "../lib/db/flashcards"
 import { completeSession, updateSessionTema } from "../lib/db/sessions"
+import { useTimerAlerts } from "../hooks/useTimerAlerts"
 import { CornellLayout } from "../components/notes/CornellLayout"
 import { Button } from "../components/ui/Button"
 import { Input } from "../components/ui/Input"
@@ -21,6 +22,7 @@ export default function CornellNotes() {
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as CornellRouteState | null
+  const { scheduleCompletionNotification } = useTimerAlerts()
 
   const timerDuration = useTimerStore((s) => s.duration)
   const timerElapsed = useTimerStore((s) => s.elapsed)
@@ -87,6 +89,10 @@ export default function CornellNotes() {
       timerStore.restore({ elapsed: 0 })
       timerStore.setPhase("break")
       timerStore.setPaused(false)
+      await scheduleCompletionNotification(
+        "break",
+        Date.now() + settings.break_duration_min * 60 * 1000,
+      )
       navigate("/timer")
     } else if (timing === "during") {
       // Break is already running in the global store (started by complete() before navigate)
@@ -106,6 +112,10 @@ export default function CornellNotes() {
       store.restore({ elapsed: 0 })
       store.setPhase("break")
       store.setPaused(false)
+      await scheduleCompletionNotification(
+        "break",
+        Date.now() + settings.break_duration_min * 60 * 1000,
+      )
       navigate("/timer")
     } else {
       // "after": break already ran, go home

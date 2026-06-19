@@ -1,6 +1,86 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
+import { renderHook, act } from "@testing-library/react"
 import { useTimerStore } from "../stores/timerStore"
+import { useUIStore } from "../stores/uiStore"
+import type { AppSettings } from "../types"
 
+// ---------------------------------------------------------------------------
+// Mocks — established before any imports that transitively load them
+// ---------------------------------------------------------------------------
+
+const mockNavigate = vi.fn()
+
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => mockNavigate,
+  useLocation: () => ({ pathname: "/" }),
+}))
+
+const { mockGetSettings, mockGetTimerState, mockSaveTimerState, mockClearTimerState } =
+  vi.hoisted(() => ({
+    mockGetSettings: vi.fn(),
+    mockGetTimerState: vi.fn(),
+    mockSaveTimerState: vi.fn(),
+    mockClearTimerState: vi.fn(),
+  }))
+
+vi.mock("../lib/store", () => ({
+  getSettings: mockGetSettings,
+  getTimerState: mockGetTimerState,
+  saveTimerState: mockSaveTimerState,
+  clearTimerState: mockClearTimerState,
+}))
+
+const { mockCreateSession, mockCompleteSession, mockAbandonSession } = vi.hoisted(() => ({
+  mockCreateSession: vi.fn(),
+  mockCompleteSession: vi.fn(),
+  mockAbandonSession: vi.fn(),
+}))
+
+vi.mock("../lib/db/sessions", () => ({
+  createSession: mockCreateSession,
+  completeSession: mockCompleteSession,
+  abandonSession: mockAbandonSession,
+}))
+
+const {
+  mockTriggerAlerts,
+  mockInitAudio,
+  mockStopAudio,
+  mockScheduleCompletionNotification,
+  mockCancelCompletionNotification,
+} = vi.hoisted(() => ({
+  mockTriggerAlerts: vi.fn(),
+  mockInitAudio: vi.fn(),
+  mockStopAudio: vi.fn(),
+  mockScheduleCompletionNotification: vi.fn(),
+  mockCancelCompletionNotification: vi.fn(),
+}))
+
+vi.mock("./useTimerAlerts", () => ({
+  useTimerAlerts: () => ({
+    triggerAlerts: mockTriggerAlerts,
+    initAudio: mockInitAudio,
+    stopAudio: mockStopAudio,
+    scheduleCompletionNotification: mockScheduleCompletionNotification,
+    cancelCompletionNotification: mockCancelCompletionNotification,
+  }),
+}))
+
+import { useTimer } from "./useTimer"
+
+function makeSettings(overrides: Partial<AppSettings> = {}): AppSettings {
+  return {
+    pomodoro_duration_min: 25,
+    break_duration_min: 5,
+    cornell_enabled: false,
+    cornell_every_n: 1,
+    cornell_timing: "during",
+    sound_enabled: true,
+    flash_enabled: true,
+    vibration_enabled: true,
+    ...overrides,
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Isolate the store before each test
@@ -16,6 +96,155 @@ beforeEach(() => {
     pomodoroCountToday: 0,
     distractionsThisSession: 0,
     wasRestored: false,
+  })
+  useUIStore.setState({ activeModal: null, confirmOptions: null, flashActive: false })
+  vi.clearAllMocks()
+  mockGetSettings.mockResolvedValue(makeSettings())
+  mockGetTimerState.mockResolvedValue(null)
+  mockSaveTimerState.mockResolvedValue(undefined)
+  mockClearTimerState.mockResolvedValue(undefined)
+  mockCreateSession.mockResolvedValue(1)
+  mockCompleteSession.mockResolvedValue(undefined)
+  mockAbandonSession.mockResolvedValue(undefined)
+  mockTriggerAlerts.mockResolvedValue(undefined)
+  mockScheduleCompletionNotification.mockResolvedValue(undefined)
+  mockCancelCompletionNotification.mockResolvedValue(undefined)
+})
+
+// ---------------------------------------------------------------------------
+// Native completion notification — lifecycle call sites
+// ---------------------------------------------------------------------------
+
+describe("useTimer native notification wiring", () => {
+  it("start() schedules a focus notification for now + duration", async () => {
+    const before = Date.now()
+    const { result } = renderHook(() => useTimer())
+
+    await act(async () => {
+      await result.current.start("topic")
+    })
+
+    expect(mockScheduleCompletionNotification).toHaveBeenCalledOnce()
+    const [phase, targetMs] = mockScheduleCompletionNotification.mock.calls[0]
+    expect(phase).toBe("focus")
+    expect(targetMs).toBeGreaterThanOrEqual(before + 25 * 60 * 1000)
+  })
+
+  it("pause() cancels the pending notification", async () => {
+    const { result } = renderHook(() => useTimer())
+    await act(async () => {
+      await result.current.start("topic")
+    })
+    mockCancelCompletionNotification.mockClear()
+
+    act(() => {
+      result.current.pause()
+    })
+
+    expect(mockCancelCompletionNotification).toHaveBeenCalledOnce()
+  })
+
+  it("resume() reschedules the notification for now + remaining duration", async () => {
+    useTimerStore.setState({ phase: "focus", duration: 300, elapsed: 100, isPaused: true })
+    const { result } = renderHook(() => useTimer())
+    mockScheduleCompletionNotification.mockClear()
+    const before = Date.now()
+
+    await act(async () => {
+      await result.current.resume()
+    })
+
+    expect(mockScheduleCompletionNotification).toHaveBeenCalledOnce()
+    const [phase, targetMs] = mockScheduleCompletionNotification.mock.calls[0]
+    expect(phase).toBe("focus")
+    expect(targetMs).toBeGreaterThanOrEqual(before + 200 * 1000)
+  })
+
+  it("cancel() onConfirm cancels the pending notification", async () => {
+    useTimerStore.setState({ phase: "focus", sessionId: 1 })
+    const { result } = renderHook(() => useTimer())
+
+    act(() => {
+      result.current.cancel()
+    })
+
+    const confirmOptions = useUIStore.getState().confirmOptions
+    expect(confirmOptions).not.toBeNull()
+
+    await act(async () => {
+      await confirmOptions?.onConfirm()
+    })
+
+    expect(mockCancelCompletionNotification).toHaveBeenCalledOnce()
+  })
+
+  it("complete() cancels focus notification then schedules break notification, in order", async () => {
+    useTimerStore.setState({
+      phase: "focus",
+      sessionId: 1,
+      elapsed: 1500,
+      duration: 1500,
+      pomodoroCountToday: 0,
+    })
+    mockGetSettings.mockResolvedValue(makeSettings({ cornell_enabled: false }))
+    const { result } = renderHook(() => useTimer())
+
+    const callOrder: string[] = []
+    mockTriggerAlerts.mockImplementation(async () => {
+      callOrder.push("triggerAlerts")
+    })
+    mockCancelCompletionNotification.mockImplementation(async () => {
+      callOrder.push("cancel")
+    })
+    mockScheduleCompletionNotification.mockImplementation(async () => {
+      callOrder.push("schedule")
+    })
+
+    await act(async () => {
+      await result.current.complete()
+    })
+
+    expect(callOrder).toEqual(["triggerAlerts", "cancel", "schedule"])
+    const scheduleCall = mockScheduleCompletionNotification.mock.calls[0]
+    expect(scheduleCall[0]).toBe("break")
+  })
+
+  it("completeBreak() cancels the break notification and does not reschedule", async () => {
+    useTimerStore.setState({ phase: "break", sessionId: 1, pomodoroCountToday: 1 })
+    mockGetSettings.mockResolvedValue(makeSettings({ cornell_timing: "during" }))
+    const { result } = renderHook(() => useTimer())
+
+    const callOrder: string[] = []
+    mockTriggerAlerts.mockImplementation(async () => {
+      callOrder.push("triggerAlerts")
+    })
+    mockCancelCompletionNotification.mockImplementation(async () => {
+      callOrder.push("cancel")
+    })
+
+    await act(async () => {
+      await result.current.completeBreak()
+    })
+
+    expect(callOrder).toEqual(["triggerAlerts", "cancel"])
+    expect(mockScheduleCompletionNotification).not.toHaveBeenCalled()
+  })
+
+  it("addBreakTime() cancels then reschedules with the extended target", async () => {
+    useTimerStore.setState({ phase: "break", duration: 300, elapsed: 60 })
+    const { result } = renderHook(() => useTimer())
+    const before = Date.now()
+
+    await act(async () => {
+      await result.current.addBreakTime(2)
+    })
+
+    expect(mockCancelCompletionNotification).toHaveBeenCalledOnce()
+    expect(mockScheduleCompletionNotification).toHaveBeenCalledOnce()
+    const [phase, targetMs] = mockScheduleCompletionNotification.mock.calls[0]
+    expect(phase).toBe("break")
+    // new duration = 300 + 120 = 420; remaining = 420 - 60 = 360
+    expect(targetMs).toBeGreaterThanOrEqual(before + 360 * 1000)
   })
 })
 
