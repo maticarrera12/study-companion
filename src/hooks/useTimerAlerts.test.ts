@@ -296,6 +296,18 @@ describe("useTimerAlerts", () => {
       expect(mockRequestPermission).not.toHaveBeenCalled()
       expect(mockSendNotification).toHaveBeenCalledOnce()
     })
+
+    it("does not reject when the notification plugin throws", async () => {
+      // Regression: a failing plugin call must never break the caller's flow
+      // (complete/cancel rely on this never throwing — dev/unsigned builds).
+      mockGetSettings.mockResolvedValue(makeSettings({ sound_enabled: true }))
+      mockCancelNotifications.mockRejectedValue(new Error("notification plugin unavailable"))
+
+      const { result } = renderHook(() => useTimerAlerts())
+      await expect(
+        result.current.scheduleCompletionNotification("focus", Date.now() + 60_000),
+      ).resolves.not.toThrow()
+    })
   })
 
   describe("cancelCompletionNotification", () => {
@@ -304,6 +316,15 @@ describe("useTimerAlerts", () => {
       await result.current.cancelCompletionNotification()
 
       expect(mockCancelNotifications).toHaveBeenCalledWith([1])
+    })
+
+    it("does not reject when the notification plugin throws", async () => {
+      // Regression: cancel is awaited inside complete()/cancel()/pause() —
+      // a rejection here previously froze the timer flow (sound played, no nav).
+      mockCancelNotifications.mockRejectedValue(new Error("notification plugin unavailable"))
+
+      const { result } = renderHook(() => useTimerAlerts())
+      await expect(result.current.cancelCompletionNotification()).resolves.not.toThrow()
     })
   })
 })

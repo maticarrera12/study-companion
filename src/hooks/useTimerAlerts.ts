@@ -99,27 +99,38 @@ export function useTimerAlerts(): {
     phase: "focus" | "break",
     targetMs: number,
   ): Promise<void> {
-    const settings = await getSettings()
-    if (!settings.sound_enabled) return
+    // A notification is a side-effect: it must never break the timer flow.
+    // Any plugin failure (e.g. unavailable in dev/unsigned builds) degrades silently.
+    try {
+      const settings = await getSettings()
+      if (!settings.sound_enabled) return
 
-    let granted = await isPermissionGranted()
-    if (!granted) {
-      const permission = await requestPermission()
-      granted = permission === "granted"
+      let granted = await isPermissionGranted()
+      if (!granted) {
+        const permission = await requestPermission()
+        granted = permission === "granted"
+      }
+      if (!granted) return // silent no-op on denial
+
+      await cancelNotifications([NOTIFICATION_ID])
+      sendNotification({
+        id: NOTIFICATION_ID,
+        title: phase === "focus" ? "Pomodoro complete" : "Break complete",
+        body: phase === "focus" ? "Time for a break." : "Back to focus.",
+        schedule: Schedule.at(new Date(targetMs)),
+      })
+    } catch (err) {
+      console.error("scheduleCompletionNotification failed", err)
     }
-    if (!granted) return // silent no-op on denial
-
-    await cancelNotifications([NOTIFICATION_ID])
-    sendNotification({
-      id: NOTIFICATION_ID,
-      title: phase === "focus" ? "Pomodoro complete" : "Break complete",
-      body: phase === "focus" ? "Time for a break." : "Back to focus.",
-      schedule: Schedule.at(new Date(targetMs)),
-    })
   }
 
   async function cancelCompletionNotification(): Promise<void> {
-    await cancelNotifications([NOTIFICATION_ID])
+    // Never let a cancel failure block the caller's flow (complete/cancel/pause).
+    try {
+      await cancelNotifications([NOTIFICATION_ID])
+    } catch (err) {
+      console.error("cancelCompletionNotification failed", err)
+    }
   }
 
   return {
