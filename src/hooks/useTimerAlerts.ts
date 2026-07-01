@@ -1,15 +1,7 @@
 import { useRef, useCallback } from "react"
-import {
-  isPermissionGranted,
-  requestPermission,
-  sendNotification,
-  cancel as cancelNotifications,
-  Schedule,
-} from "@tauri-apps/plugin-notification"
+import { invoke } from "@tauri-apps/api/core"
 import { getSettings } from "../lib/store"
 import { useUIStore } from "../stores/uiStore"
-
-const NOTIFICATION_ID = 1
 
 export function useTimerAlerts(): {
   triggerAlerts: (phase: "focus" | "break") => Promise<void>
@@ -99,26 +91,14 @@ export function useTimerAlerts(): {
     phase: "focus" | "break",
     targetMs: number,
   ): Promise<void> {
-    // A notification is a side-effect: it must never break the timer flow.
-    // Any plugin failure (e.g. unavailable in dev/unsigned builds) degrades silently.
+    // The Rust backend owns the completion timer: its runtime keeps ticking even
+    // when macOS suspends the WKWebView (occluded/minimized), so the OS notification
+    // fires at the right time regardless of window state. A notification is a
+    // side-effect and must never break the timer flow — degrade silently on error.
     try {
       const settings = await getSettings()
       if (!settings.sound_enabled) return
-
-      let granted = await isPermissionGranted()
-      if (!granted) {
-        const permission = await requestPermission()
-        granted = permission === "granted"
-      }
-      if (!granted) return // silent no-op on denial
-
-      await cancelNotifications([NOTIFICATION_ID])
-      sendNotification({
-        id: NOTIFICATION_ID,
-        title: phase === "focus" ? "Pomodoro complete" : "Break complete",
-        body: phase === "focus" ? "Time for a break." : "Back to focus.",
-        schedule: Schedule.at(new Date(targetMs)),
-      })
+      await invoke("schedule_timer_notification", { targetMs, phase })
     } catch (err) {
       console.error("scheduleCompletionNotification failed", err)
     }
@@ -127,7 +107,7 @@ export function useTimerAlerts(): {
   async function cancelCompletionNotification(): Promise<void> {
     // Never let a cancel failure block the caller's flow (complete/cancel/pause).
     try {
-      await cancelNotifications([NOTIFICATION_ID])
+      await invoke("cancel_timer_notification")
     } catch (err) {
       console.error("cancelCompletionNotification failed", err)
     }
